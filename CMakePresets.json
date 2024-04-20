@@ -28,7 +28,10 @@
         "CMAKE_C_COMPILER": "/usr/bin/clang",
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
         "CMAKE_EXPERIMENTAL_CXX_SCANDEP_SOURCE": "/usr/bin/clang-scan-deps-17",
-        "CMAKE_TOOLCHAIN_FILE": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "PYTHON_EXECUTABLE": "/home/wangxiaofei/anaconda3/bin/python",
+        "PYTHON_INCLUDE_DIR": "/home/wangxiaofei/anaconda3/include/python3.8",
+        "PYTHON_LIBRARY": "/home/wangxiaofei/anaconda3/lib"
       },
       "condition": {
         "type": "equals",

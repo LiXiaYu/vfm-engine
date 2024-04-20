@@ -57,7 +57,19 @@ if(OPENMP_FOUND)
 
 endif()
 
+# 为此项目添加pybind11支持
+# set(Python3_FIND_VIRTUALENV FIRST)
+find_package(Python COMPONENTS Interpreter Development)
+find_package(pybind11 CONFIG)
 
+if (Python_FOUND)
+	message("Python Found")
+	message("Python Version: ${Python_VERSION}")
+	message("Python Include: ${Python_INCLUDE_DIRS}")
+	message("Python Libraries: ${Python_LIBRARIES}")
+else()
+	message("Python Not Found")
+endif()
 
 # 将源代码添加到此项目的可执行文件。
 add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp" "unilang_import.h" "FEBio_refunction.cpp" "FEBio_refunction.h")
