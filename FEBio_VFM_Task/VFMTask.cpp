@@ -14,12 +14,27 @@
 
 #include <nlopt.hpp>
 
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+
 #include "optim.h"
 #include "VectorNum.h"
 
 #include "FEBio_refunction.h"
 
 #include "unilang_import.h"
+
+
+//定义多个embedded模块
+PYBIND11_EMBEDDED_MODULE(fast_calc, m) {
+	m.def("add", [](int i, int j) {
+		return i + j;
+		});
+}
+
+PYBIND11_EMBEDDED_MODULE(cpp_module, m) {
+	m.attr("a") = 1;
+}
 
 VFMTask::VFMTask(FEModel* pfem):FECoreTask(pfem)
 {
@@ -2098,6 +2113,84 @@ bool VFMTask::Init(const char* szfile)
 		// could import a script language>?
 		// normal text file> 
 	::std::string unilang_filename = (::std::string(szfile) + ".unilang");
+
+	// Start python interpreter
+	namespace py = pybind11;
+	using namespace py::literals;
+	//-----------------------------------------------------------------
+		//启动Python解释器
+	py::scoped_interpreter guard{};
+	//-------------------------------------------------------------------
+
+	//调用Python函数
+	py::print("Hello,World");
+
+	//-------------------------------------------------------------------
+	//执行Python脚本
+	py::exec(R"(
+        kwargs=dict(name="world",number=42)
+        message="Hello,{name}! The answer is {number}".format(**kwargs)
+        print(message)
+    )");
+
+	//--------------------------------------------------------------------
+
+	auto kwargs = py::dict("name"_a = "world", "number"_a = 42);
+	auto message = "Hello,{name}! The answer is {number}"_s.format(**kwargs);
+	py::print(message);
+
+	//-------------------------------------------------------------------
+
+	//初始化脚本空间状态    
+	auto locals = py::dict("name"_a = "world", "number"_a = 42);
+	//运行脚本
+	py::exec(R"(
+        message="Hello,{name}! The answer is {number}".format(**locals())
+    )", py::globals(), locals);
+
+	std::cout << locals["message"].cast<std::string>() << std::endl;
+
+	//---------------------------------------------------------------------
+	//加载Python模块，获取模块变量(py::object)
+	auto sys = py::module_::import("sys");
+	py::print(sys.attr("path"));
+
+	//---------------------------------------------------------------------
+
+	//加载pybind11嵌入模块，运行命令
+	auto calc = py::module_::import("calc");
+	auto result = calc.attr("add")(1, 2);
+
+	int n = result.cast<int>();
+
+	assert(n == 3);
+	//-------------------------------------------------------------------------
+
+	{
+		//加载embedded模块
+		auto fast_calc = py::module_::import("fast_calc");
+		auto result = fast_calc.attr("add")(1, 2).cast<int>();
+		assert(result == 3);
+	}
+
+	////-------------------------------------------------------------------------
+	//{
+	//	//加载外部模块，该模块引用内部embedded模块
+	//	auto py_module = py::module_::import("py_module");
+	//	auto locals = py::dict("fmt"_a = "{}+{}={}", **py_module.attr("__dict__"));
+	//	assert(locals["a"].cast<int>() == 1);
+	//	assert(locals["b"].cast<int>() == 2);
+
+	//	py::exec(R"(
+ //           c=a+b
+ //           message=fmt.format(a,b,c)
+ //       )", py::globals(), locals);
+
+	//	assert(locals["c"].cast<int>() == 3);
+	//	py::print(locals["message"]);
+
+	//}
+	////------------------------------------------------------------------------
 
 	//judge if the unilang file exists
 	if (::std::filesystem::exists(unilang_filename))

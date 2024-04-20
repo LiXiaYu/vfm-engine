@@ -57,27 +57,43 @@ if(OPENMP_FOUND)
 
 endif()
 
+# 将源代码添加到此项目的可执行文件。
+add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp" "unilang_import.h" "FEBio_refunction.cpp" "FEBio_refunction.h" )
+target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
+
+# 为此项目引用vcpkg安装的NLpot
+find_package(NLopt CONFIG REQUIRED)
+target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
+
 # 为此项目添加pybind11支持
+
 # set(Python3_FIND_VIRTUALENV FIRST)
-find_package(Python COMPONENTS Interpreter Development)
-find_package(pybind11 CONFIG)
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+find_package(pybind11 CONFIG REQUIRED)
 
 if (Python_FOUND)
 	message("Python Found")
 	message("Python Version: ${Python_VERSION}")
 	message("Python Include: ${Python_INCLUDE_DIRS}")
 	message("Python Libraries: ${Python_LIBRARIES}")
+	# need libpython and libpython _d
+
+	message("pybind11 INCLUDE_DIRECTORIES: ${pybind11_INCLUDE_DIRS}")
 else()
 	message("Python Not Found")
 endif()
 
-# 将源代码添加到此项目的可执行文件。
-add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp" "unilang_import.h" "FEBio_refunction.cpp" "FEBio_refunction.h")
-target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
+# target_link_libraries (FEBio_VFM_Task PRIVATE ${pybind11_INCLUDE_DIRS})
+# target_include_directories (FEBio_VFM_Task PRIVATE "${PYTHON_INCLUDE_DIRS}")
+# target_link_directories (FEBio_VFM_Task PRIVATE "${PYTHON_LIBRARY_DIRS}")
+# target_link_libraries (FEBio_VFM_Task PRIVATE "${PYTHON_LIBRARIES}")
 
-# 为此项目引用vcpkg安装的NLpot
-find_package(NLopt CONFIG REQUIRED)
-target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
+target_link_libraries (FEBio_VFM_Task PRIVATE Python::Python)
+target_link_libraries (FEBio_VFM_Task PRIVATE pybind11::pybind11 pybind11::embed)
 
 # 为此项目引用目录下的dll: unilang.dll
 if (WIN32)

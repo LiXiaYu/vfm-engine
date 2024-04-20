@@ -24,14 +24,18 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "toolchainFile": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "/usr/bin/clang",
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
         "CMAKE_EXPERIMENTAL_CXX_SCANDEP_SOURCE": "/usr/bin/clang-scan-deps-17",
-        "CMAKE_TOOLCHAIN_FILE": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "Python_EXECUTABLE": "/home/wangxiaofei/anaconda3/bin/python",
+        "Python_INCLUDE_DIRS": "/home/wangxiaofei/anaconda3/include/python3.8",
+        "Python_LIBRARIES": "/home/wangxiaofei/anaconda3/lib",
         "PYTHON_EXECUTABLE": "/home/wangxiaofei/anaconda3/bin/python",
-        "PYTHON_INCLUDE_DIR": "/home/wangxiaofei/anaconda3/include/python3.8",
-        "PYTHON_LIBRARY": "/home/wangxiaofei/anaconda3/lib"
+        "PYTHON_INCLUDE_DIRS": "/home/wangxiaofei/anaconda3/include/python3.8",
+        "PYTHON_LIBRARIES": "/home/wangxiaofei/anaconda3/lib"
       },
       "condition": {
         "type": "equals",
