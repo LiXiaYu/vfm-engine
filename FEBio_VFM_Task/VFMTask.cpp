@@ -14,27 +14,10 @@
 
 #include <nlopt.hpp>
 
-#include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
-
 #include "optim.h"
 #include "VectorNum.h"
 
 #include "FEBio_refunction.h"
-
-#include "unilang_import.h"
-
-
-//定义多个embedded模块
-PYBIND11_EMBEDDED_MODULE(fast_calc, m) {
-	m.def("add", [](int i, int j) {
-		return i + j;
-		});
-}
-
-PYBIND11_EMBEDDED_MODULE(cpp_module, m) {
-	m.attr("a") = 1;
-}
 
 VFMTask::VFMTask(FEModel* pfem):FECoreTask(pfem)
 {
@@ -69,7 +52,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 		return false;
 	}
 
-	if (task->isRead_FEMresult_fromsavefile == false)
+	if (task->configure.isRead_FEMresult_fromsavefile == false)
 	{
 		// get timestep
 		double currenttime = fem->GetCurrentTime();
@@ -91,7 +74,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 		//data_number = 1; // only get the first data
 		for (int j = 0; j < data_number; j++)
 		{
-			if (j == task->displacementdataNumber)
+			if (j == task->configure.displacementdataNumber)
 			{			
 				DataRecord& datarecord = *(datastore.GetDataRecord(j));
 				::std::string data_name = datarecord.GetName();
@@ -118,7 +101,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 					(task->timedisplacement.end() - 1)->push_back(u);
 				}
 			}
-			else if (j == task->stressdataNumber)
+			else if (j == task->configure.stressdataNumber)
 			{
 				DataRecord& datarecord = *(datastore.GetDataRecord(j));
 				::std::string data_name = datarecord.GetName();
@@ -188,7 +171,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 	::std::function<double(const ::std::vector<double>&)> function;
 
-	if (task->isReadfromsaveOptimfunc == false)
+	if (task->configure.isReadfromsaveOptimfunc == false)
 	{
 
 #pragma region getInput
@@ -216,10 +199,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 	write_to_log_2(fem, "get solutions element...\n", outFile);
 	// get solutions' element
-	for (int i = 0; i < task->solution.size(); i++)
+	for (int i = 0; i < task->configure.solution.size(); i++)
 	{
-		::std::string solution_type = ::std::get<0>(task->solution[i]);
-		::std::string solution_name = ::std::get<1>(task->solution[i]);
+		::std::string solution_type = ::std::get<0>(task->configure.solution[i]);
+		::std::string solution_name = ::std::get<1>(task->configure.solution[i]);
 
 		if (solution_type == "elements")
 		{
@@ -246,10 +229,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 	write_to_log_2(fem, "get fixed nodes...\n", outFile);
 	// get fixed nodes
-	for (int i = 0; i < task->fixed.size(); i++)
+	for (int i = 0; i < task->configure.fixed.size(); i++)
 	{
-		::std::string fixed_type = ::std::get<0>(task->fixed[i]);
-		::std::string fixed_name = ::std::get<1>(task->fixed[i]);
+		::std::string fixed_type = ::std::get<0>(task->configure.fixed[i]);
+		::std::string fixed_name = ::std::get<1>(task->configure.fixed[i]);
 
 		if (fixed_type == "nodeset")
 		{
@@ -311,7 +294,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	#pragma region readsavefile_dump
 
 	write_to_log_2(fem, "read from savefile dump...\n", outFile);
-	if (task->isRead_FEMresult_fromsavefile == true)
+	if (task->configure.isRead_FEMresult_fromsavefile == true)
 	{
 		DumpFile dumpfile(*fem);
 		dumpfile.Open(task->dumpfile.c_str());
@@ -342,7 +325,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	// log: calculate timestep for VFM begin...
 	write_to_log_2(fem, "calculate timestep for VFM begin...\n", outFile);
 
-	double total_cycle_time = 60 / task->BMP;
+	double total_cycle_time = 60 / task->configure.bpm;
 	double sum_cycle_time = 0.0;
 	int start_index = 0;
 	for (int i = task->timestep.size() - 1; i >= 0; i--)
@@ -1339,7 +1322,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			// surface load
 			write_to_log_2(fem, "surface load and evw:\n", outFile);			
 
-			for (int j = 0; j < task->pressure_load.size(); j++)
+			for (int j = 0; j < task->configure.pressure_load.size(); j++)
 			{
 				for (int i = 0; i < fem->ModelLoads(); i++)
 				{
@@ -1347,7 +1330,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					::std::string loadclassname = load.GetFactoryClass()->GetClassName();
 					::std::string loadname = load.GetName();
 					
-					if (::std::get<0>(task->pressure_load[j]) == loadclassname && ::std::get<1>(task->pressure_load[j]) == loadname)
+					if (::std::get<0>(task->configure.pressure_load[j]) == loadclassname && ::std::get<1>(task->configure.pressure_load[j]) == loadname)
 					{
 						if (loadclassname == "FEPressureLoad")
 						{
@@ -2114,12 +2097,20 @@ bool VFMTask::Init(const char* szfile)
 		// normal text file> 
 	::std::string unilang_filename = (::std::string(szfile) + ".unilang");
 
+
+	// szfile remove the suffix
+	::std::string szfile_no_suffix = szfile;
+	szfile_no_suffix = szfile_no_suffix.substr(0, szfile_no_suffix.find_last_of('.'));
+
+	::std::string python_filename = (::std::string(szfile_no_suffix) + ".py");
+	::std::string python_module_name = szfile_no_suffix;
+
 	// Start python interpreter
 	namespace py = pybind11;
 	using namespace py::literals;
 	//-----------------------------------------------------------------
 		//启动Python解释器
-	py::scoped_interpreter guard{};
+
 	//-------------------------------------------------------------------
 
 	//调用Python函数
@@ -2158,215 +2149,21 @@ bool VFMTask::Init(const char* szfile)
 	//---------------------------------------------------------------------
 
 	//加载pybind11嵌入模块，运行命令
-	auto calc = py::module_::import("calc");
-	auto result = calc.attr("add")(1, 2);
-
-	int n = result.cast<int>();
-
-	assert(n == 3);
-	//-------------------------------------------------------------------------
-
-	{
-		//加载embedded模块
-		auto fast_calc = py::module_::import("fast_calc");
-		auto result = fast_calc.attr("add")(1, 2).cast<int>();
-		assert(result == 3);
-	}
-
-	////-------------------------------------------------------------------------
-	//{
-	//	//加载外部模块，该模块引用内部embedded模块
-	//	auto py_module = py::module_::import("py_module");
-	//	auto locals = py::dict("fmt"_a = "{}+{}={}", **py_module.attr("__dict__"));
-	//	assert(locals["a"].cast<int>() == 1);
-	//	assert(locals["b"].cast<int>() == 2);
-
-	//	py::exec(R"(
- //           c=a+b
- //           message=fmt.format(a,b,c)
- //       )", py::globals(), locals);
-
-	//	assert(locals["c"].cast<int>() == 3);
-	//	py::print(locals["message"]);
-
-	//}
-	////------------------------------------------------------------------------
-
-	//judge if the unilang file exists
-	if (::std::filesystem::exists(unilang_filename))
-	{
-		int u_vfm_pm = 0;
-		//double u_vfm_bpm = 120;
-		unilang_regist_int_value("u_vfm_pm", &u_vfm_pm);
-		unilang_regist_double_value("u_vfm_bpm", &(this->BMP));
-
-		unilang_regist_bool_value("u_vfm_isRead_FEMresult_fromsavefile", &(this->isRead_FEMresult_fromsavefile));
-		unilang_regist_bool_value("u_vfm_isReadfromsaveOptimfunc", &(this->isReadfromsaveOptimfunc));
-
-		unilang_regist_int_value("u_vfm_displacementdataNumber", &(this->displacementdataNumber));
-		unilang_regist_int_value("u_vfm_stressdataNumber", &(this->stressdataNumber));
-		unilang_regist_int_value("u_vfm_pressurevalueNumber", &(this->pressurevalueNumber));
-		
-		std::uintptr_t temp_p_solution = (std::uintptr_t)&(this->solution);
-		unilang_regist_uintptr_t_value("u_vfm_solution", (&temp_p_solution));
-		std::uintptr_t temp_p_pressure_load = (std::uintptr_t)&(this->pressure_load);
-		unilang_regist_uintptr_t_value("u_vfm_pressure_load", (&temp_p_pressure_load));
-		std::uintptr_t temp_p_fixed = (std::uintptr_t)&(this->fixed);
-		unilang_regist_uintptr_t_value("u_vfm_fixed", (&temp_p_fixed));
-		std::uintptr_t temp_p_fixednode = (std::uintptr_t)&(this->fixednode);
-		unilang_regist_uintptr_t_value("u_vfm_fixednode", (&temp_p_fixednode));
-
-		std::uintptr_t temp_p_readfromsaveOptimfunc_index= (std::uintptr_t)&(this->readfromsaveOptimfunc_index);
-		unilang_regist_uintptr_t_value("u_vfm_readfromsaveOptimfunc_index", (&temp_p_readfromsaveOptimfunc_index));
-
-		feLog("temp_unilang_p_solution:");
-		stringstream ssssss_solution;
-		ssssss_solution << (std::uintptr_t)temp_p_solution << "\n" << (std::uintptr_t)temp_p_pressure_load << "\n" << (std::uintptr_t)temp_p_fixed << "\n" << (std::uintptr_t)temp_p_fixednode << "\n";
-
-		feLog(ssssss_solution.str().c_str());
-
-		//std::function<int(int,int)> f_add = [](int x, int y) {return x + y; };
-		//void* p_f_add = f_add.target<int(*)(int, int)>();
-		const char * parem_p_f_add[2] = { "int", "int" };
-		
-		// print p_f_add address to stringstream
-
-		static void* p_f_add = reinterpret_cast<void*>(add);
-		unilang_regist_function_var("u_vfm_add", &p_f_add, "int", 2, parem_p_f_add);
-		
-		const char* parem_p_f_vt_pushback[3] = { "uintptr_t", "string", "string" };
-		static void* p_f_vector__tuple__string_string = reinterpret_cast<void*>(push_back_vector__tuple__string_string);
-		unilang_regist_function_var("u_vfm_vt_pushback", &p_f_vector__tuple__string_string, "int", 3, parem_p_f_vt_pushback);
-
-		const char* parem_p_f_vi_pushback[2] = { "uintptr_t", "int" };
-		static void* p_f_vector__int = reinterpret_cast<void*>(push_back_vector__int);
-		unilang_regist_function_var("u_vfm_vi_pushback", &p_f_vector__int, "int", 2, parem_p_f_vi_pushback);
-
-		unilang_load_file(unilang_filename.data());
-
-	}
-	else
-	{
-
-		// Text file
-		::std::string line1;
-		::std::istringstream iss;
-
-		// Get parameters
-		::std::getline(inFile, line1);
-		iss.str(line1);
-		size_t parameters_number = 0;
-		iss >> parameters_number;
-		iss.clear();
-
-		// set initialize object parameters
-		::std::string line2;
-		::std::getline(inFile, line2);
-		iss.str(line2);
-		::std::vector<double> objects(parameters_number);
-		for (size_t i = 0; i < parameters_number; ++i)
-		{
-			iss >> objects[i];
-		}
-		iss.clear();
-
-		// get BMP
-		::std::string line3;
-		::std::getline(inFile, line3);
-		iss.str(line3);
-		this->BMP = 0.0;
-		iss >> BMP;
-		iss.clear();
-
-		// get is read from save file
-		::std::string line4;
-		::std::getline(inFile, line4);
-		iss.str(line4);
-		this->isRead_FEMresult_fromsavefile = false;
-		::std::string line4_temp_readFEMresult;
-		iss >> line4_temp_readFEMresult >> ::std::boolalpha >> this->isRead_FEMresult_fromsavefile;
-		iss.clear();
-
-		::std::string line4x;
-		::std::getline(inFile, line4x);
-		iss.str(line4x);
-		this->isReadfromsaveOptimfunc = false;
-		::std::string line4x_temp_readOptimfunc;
-		iss >> line4x_temp_readOptimfunc >> ::std::boolalpha >> this->isReadfromsaveOptimfunc;
-		iss.clear();
-
-		::std::string line5;
-		::std::getline(inFile, line5);
-		iss.str(line5);
-		this->displacementdataNumber = 0;
-		::std::string line5_0, line5_1;
-		iss >> line5_0 >> line5_1 >> this->displacementdataNumber;
-		iss.clear();
-
-		::std::string line6;
-		::std::getline(inFile, line6);
-		iss.str(line6);
-		this->pressurevalueNumber = 0;
-		::std::string line6_0, line6_1;
-		iss >> line6_0 >> line6_1 >> this->pressurevalueNumber;
-		iss.clear();
-
-		::std::string line;
-		while (::std::getline(inFile, line))
-		{
-			// if line first is solution
-			if (line.find("solution") != ::std::string::npos)
-			{
-				// get solution
-				::std::istringstream iss;
-				iss.str(line);
-				::std::string solution_0, solution_1, solution_2;
-				iss >> solution_0 >> solution_1 >> solution_2;
-				this->solution.push_back({ solution_1,solution_2 });
-			}
-			else if (line.find("pressure_load") != ::std::string::npos)
-			{
-				// get pressure
-				::std::istringstream iss;
-				iss.str(line);
-				::std::string pressure_0, pressure_1, pressure_2;
-				iss >> pressure_0 >> pressure_1 >> pressure_2;
-				this->pressure_load.push_back({ pressure_1,pressure_2 });
-			}
-			else if (line.find("fixed") != ::std::string::npos)
-			{
-				// get fixed
-				::std::istringstream iss;
-				iss.str(line);
-				::std::string fixed_0, fixed_1, fixed_2;
-				iss >> fixed_0 >> fixed_1 >> fixed_2;
-
-				if (fixed_2 == "list")
-				{
-					// read this line as number and number, until the end of line
-					int nodeID;
-					while (iss >> nodeID)
-					{
-						this->fixednode.push_back(nodeID - 1);
-					}
-				}
-				else
-				{
-					this->fixed.push_back({ fixed_1,fixed_2 });
-				}
-
-
-			}
-		}
-
-	}
+	std::cout<< "Load python file: " << python_filename << std::endl;
+	// 加载外部文件
+	auto pyfile_module = py::module_::import(python_module_name.c_str());
+	// InitVFMTask
+	auto result = pyfile_module.attr("InitVFMTask")();
+	auto vfm_configure_from_py = result.cast<VFMTask_configure>();
+	// 从python文件中获取配置
+	this->configure = vfm_configure_from_py;
 
 	// number of cycles considered at the end
 	int numCycle = 2;
 
 	// create a save file
-	this->outSavefile = string(szfile) + "_BMP"+::std::to_string(static_cast<int>(this->BMP)) + "_save.txt";
-	if (this->isRead_FEMresult_fromsavefile == false)
+	this->outSavefile = string(szfile) + "_BMP"+::std::to_string(static_cast<int>(this->configure.bpm)) + "_save.txt";
+	if (this->configure.isRead_FEMresult_fromsavefile == false)
 	{
 		// create a save file
 		::std::ofstream outFile;
@@ -2382,7 +2179,7 @@ bool VFMTask::Init(const char* szfile)
 	}
 
 	// create a log file
-	this->outlogfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->BMP)) +"_log.txt";
+	this->outlogfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) +"_log.txt";
 	::std::ofstream outFile;
 	outFile.open(this->outlogfile, ::std::ios::out);
 	if (!outFile.is_open())
@@ -2394,11 +2191,11 @@ bool VFMTask::Init(const char* szfile)
 	}
 
 	// set dumpfile name
-	this->dumpfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->BMP)) +"_dump.febdump";
+	this->dumpfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) +"_dump.febdump";
 
 	// write log
 	outFile << endl;
-	outFile << "BMP:" << this->BMP << endl;
+	outFile << "BMP:" << this->configure.bpm << endl;
 	outFile << "numCycle:" << numCycle << endl;
 	outFile.close();
 
@@ -2421,7 +2218,7 @@ bool VFMTask::Init(const char* szfile)
 		{
 			auto* temp_lc = fem.GetLoadController(j);
 			::std::string lcname = temp_lc->GetName();
-			if (lcname == "BPM" + ::std::to_string(static_cast<int>(this->BMP)))
+			if (lcname == "BPM" + ::std::to_string(static_cast<int>(this->configure.bpm)))
 			{
 				// set the load controller
 				lc = temp_lc;
@@ -2429,8 +2226,8 @@ bool VFMTask::Init(const char* szfile)
 			}
 		}
 
-		// find surface_load name="PressureLoad1" and set new lc by BMP
-		for (int j = 0; j < this->pressure_load.size(); j++)
+		// find surface_load name="PressureLoad1" and set new lc by bmp
+		for (int j = 0; j < this->configure.pressure_load.size(); j++)
 		{
 			for (int i = 0; i < fem.ModelLoads(); i++)
 			{
@@ -2438,7 +2235,7 @@ bool VFMTask::Init(const char* szfile)
 				::std::string loadclassname = load0.GetFactoryClass()->GetClassName();
 				::std::string loadname = load0.GetName();
 
-				if (::std::get<0>(this->pressure_load[j]) == loadclassname && ::std::get<1>(this->pressure_load[j]) == loadname)
+				if (::std::get<0>(this->configure.pressure_load[j]) == loadclassname && ::std::get<1>(this->configure.pressure_load[j]) == loadname)
 				{
 					if (loadclassname == "FEPressureLoad")
 					{
@@ -2454,11 +2251,11 @@ bool VFMTask::Init(const char* szfile)
 	}
 	//// auto adjust FEM total time
 	//auto& step = *(fem.GetStep(fem.Steps() - 1));
-	//if (static_cast<int>(this->BMP) < 120)
+	//if (static_cast<int>(this->bmp) < 120)
 	//{
-	//	step.m_ntime *= (120 / static_cast<int>(this->BMP));
+	//	step.m_ntime *= (120 / static_cast<int>(this->bmp));
 
-	//	step.m_dt0 = step.m_dt0 * (120 / static_cast<int>(this->BMP)); // add time step
+	//	step.m_dt0 = step.m_dt0 * (120 / static_cast<int>(this->bmp)); // add time step
 	//}
 
 	// continue
@@ -2481,7 +2278,7 @@ bool VFMTask::Run()
 
 
 	bool femsolveresult = true;
-	if (this->isRead_FEMresult_fromsavefile == false)
+	if (this->configure.isRead_FEMresult_fromsavefile == false)
 	{
 		bool femsolveresult = fem.Solve();
 	}

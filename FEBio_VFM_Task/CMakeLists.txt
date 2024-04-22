@@ -58,7 +58,7 @@ if(OPENMP_FOUND)
 endif()
 
 # 将源代码添加到此项目的可执行文件。
-add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp" "unilang_import.h" "FEBio_refunction.cpp" "FEBio_refunction.h" )
+add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp"  "FEBio_refunction.cpp" "FEBio_refunction.h"  "VFMTask_pybind.cpp" "VFMTask_pybind.h")
 target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
 
 # 为此项目引用vcpkg安装的NLpot
@@ -67,11 +67,7 @@ target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
 
 # 为此项目添加pybind11支持
 
-# set(Python3_FIND_VIRTUALENV FIRST)
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
-find_package(PythonLibs REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIRS})
 
 find_package(pybind11 CONFIG REQUIRED)
 
@@ -87,29 +83,7 @@ else()
 	message("Python Not Found")
 endif()
 
-# target_link_libraries (FEBio_VFM_Task PRIVATE ${pybind11_INCLUDE_DIRS})
-# target_include_directories (FEBio_VFM_Task PRIVATE "${PYTHON_INCLUDE_DIRS}")
-# target_link_directories (FEBio_VFM_Task PRIVATE "${PYTHON_LIBRARY_DIRS}")
-# target_link_libraries (FEBio_VFM_Task PRIVATE "${PYTHON_LIBRARIES}")
-
-target_link_libraries (FEBio_VFM_Task PRIVATE Python::Python)
 target_link_libraries (FEBio_VFM_Task PRIVATE pybind11::pybind11 pybind11::embed)
-
-# 为此项目引用目录下的dll: unilang.dll
-if (WIN32)
-	set (UnilangPath "C:/Users/liqi/programming/mona/unilang/unilang/build")
-
-	link_directories("${UnilangPath}")
-	target_link_libraries (FEBio_VFM_Task PRIVATE "${UnilangPath}/unilang.lib")
-else()
-	# set (CMAKE_CXX_FLAGS "-L/lib/x86_64-linux-gnu -lc -lm -ldl -lrt")
-	set (UnilangPath "/home/wangxiaofei/LiXiaYu/programming/unilang/unilang_dll/build")
-
-	link_directories("${UnilangPath}")
-	target_link_libraries (FEBio_VFM_Task PRIVATE "${UnilangPath}/unilang.dll")
-
-	# set_target_properties(FEBio_VFM_Task PROPERTIES LINK_FLAGS "-Wl,-rpath,/path/to/your/libc.so.6")
-endif()
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET FEBio_VFM_Task PROPERTY CXX_STANDARD 20)

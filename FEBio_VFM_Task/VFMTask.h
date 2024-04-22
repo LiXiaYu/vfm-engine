@@ -2,6 +2,21 @@
 
 #include "common_FEBio.h"
 
+#include <pybind11/embed.h>
+
+class VFMTask_configure
+{
+public:
+    double bpm = 0.0;
+    bool isRead_FEMresult_fromsavefile = false;
+    bool isReadfromsaveOptimfunc = false;
+    int displacementdataNumber = 0;
+    int stressdataNumber = 0;
+    int pressurevalueNumber = 0;
+    std::vector<std::tuple<std::string, std::string>> solution;
+    std::vector<std::tuple<std::string, std::string>> pressure_load;
+    std::vector<std::tuple<std::string, std::string>> fixed;
+};
 
 class VFMTask : public FECoreTask
 {
@@ -36,26 +51,17 @@ public:
 
     ::std::vector<int> solution_elementsID;
 
+public:
+    pybind11::scoped_interpreter guard{};
 // input parameters
 public:
-    double BMP = 0.0;
+    VFMTask_configure configure;
 
     ::std::vector<double> objects_values;
 
-    bool isRead_FEMresult_fromsavefile = false;
-
-    int displacementdataNumber = 0;
-    int stressdataNumber = 0;
-    int pressurevalueNumber = 0;
-
-    ::std::vector<::std::tuple<::std::string, ::std::string>> solution;
-    ::std::vector<::std::tuple<::std::string, ::std::string>> pressure_load;
-    ::std::vector<::std::tuple<::std::string, ::std::string>> fixed;
-
-    bool isReadfromsaveOptimfunc = false;
-
     ::std::vector<int> readfromsaveOptimfunc_index;
 };
+
 
 std::vector<std::vector<double>> createGrid(const std::vector<double>& xl, const std::vector<double>& xu, const std::vector<double>& xd, int now_index = -1, ::std::vector<double>* now_xs = nullptr);
 
