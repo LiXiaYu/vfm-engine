@@ -10,6 +10,11 @@
 
 #include <signal.h>
 
+// if in linux
+#ifdef __linux__
+#include <dlfcn.h>
+#endif
+
 #include <omp.h>
 
 #include <nlopt.hpp>
@@ -19,7 +24,7 @@
 
 #include "FEBio_refunction.h"
 
-VFMTask::VFMTask(FEModel* pfem):FECoreTask(pfem)
+VFMTask::VFMTask(FEModel* pfem) :FECoreTask(pfem)
 {
 }
 
@@ -75,7 +80,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 		for (int j = 0; j < data_number; j++)
 		{
 			if (j == task->configure.displacementdataNumber)
-			{			
+			{
 				DataRecord& datarecord = *(datastore.GetDataRecord(j));
 				::std::string data_name = datarecord.GetName();
 				::std::string logs = "data " + to_string(j) + ": " + data_name + "\n";
@@ -161,6 +166,9 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	outFile << "read_solved_information!!!\n";
 	// not initial initialCoordinate, but mesh
 
+	const bool ONH_sinPulse100s_120_v4 = true;
+	const bool BPM_base_v4_BPM = false;
+
 	std::vector<double> timeArray;
 	::std::vector<int> solution_elementsDomainID;
 	::std::vector<::std::vector<::std::vector<double>>> trueJArray;
@@ -175,471 +183,445 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	{
 
 #pragma region getInput
-	// get mesh's object points
-	FEMesh& mesh = fem->GetMesh();
+		// get mesh's object points
+		FEMesh& mesh = fem->GetMesh();
 
-	write_to_log_2(fem,"read initial Coordinate...\n", outFile);
+		write_to_log_2(fem, "read initial Coordinate...\n", outFile);
 
-	int nodes_number = mesh.Nodes();
+		int nodes_number = mesh.Nodes();
 
-	task->nodes.resize(nodes_number);
-	task->initialCoordinate.resize(nodes_number);
+		task->nodes.resize(nodes_number);
+		task->initialCoordinate.resize(nodes_number);
 
-	// This parallel for loop is not necessary, because it is not time-consuming
-	//#pragma omp parallel for
-	for (int j = 0; j < nodes_number; j++)
-	{
-		vec3d& node = mesh.Node(j).m_r0;
-		//node.x;
-		//node.y;
-		//node.z;
-		task->nodes[j] = node;
-		task->initialCoordinate[j] = ::std::vector<double>{ node.x, node.y, node.z };
-	}
-
-	write_to_log_2(fem, "get solutions element...\n", outFile);
-	// get solutions' element
-	for (int i = 0; i < task->configure.solution.size(); i++)
-	{
-		::std::string solution_type = ::std::get<0>(task->configure.solution[i]);
-		::std::string solution_name = ::std::get<1>(task->configure.solution[i]);
-
-		if (solution_type == "elements")
+		// This parallel for loop is not necessary, because it is not time-consuming
+		//#pragma omp parallel for
+		for (int j = 0; j < nodes_number; j++)
 		{
-			for (int j = 0; j < mesh.ElementSets(); j++)
-			{
-				FEElementSet& elementset = mesh.ElementSet(j);
+			vec3d& node = mesh.Node(j).m_r0;
+			//node.x;
+			//node.y;
+			//node.z;
+			task->nodes[j] = node;
+			task->initialCoordinate[j] = ::std::vector<double>{ node.x, node.y, node.z };
+		}
 
-				::std::string elementset_name = elementset.GetName();
-				if (elementset_name == solution_name)
+		write_to_log_2(fem, "get solutions element...\n", outFile);
+		// get solutions' element
+		for (int i = 0; i < task->configure.solution.size(); i++)
+		{
+			::std::string solution_type = ::std::get<0>(task->configure.solution[i]);
+			::std::string solution_name = ::std::get<1>(task->configure.solution[i]);
+
+			if (solution_type == "elements")
+			{
+				for (int j = 0; j < mesh.ElementSets(); j++)
 				{
-					auto toadd = elementset.GetElementIDList();
-					// foreach toadd element -=1
-					for (int k = 0; k < toadd.size(); k++)
+					FEElementSet& elementset = mesh.ElementSet(j);
+
+					::std::string elementset_name = elementset.GetName();
+					if (elementset_name == solution_name)
 					{
-						toadd[k] -= 1;
+						auto toadd = elementset.GetElementIDList();
+						// foreach toadd element -=1
+						for (int k = 0; k < toadd.size(); k++)
+						{
+							toadd[k] -= 1;
+						}
+
+						task->solution_elementsID.insert(task->solution_elementsID.end(), toadd.begin(), toadd.end());
+					}
+				}
+			}
+
+		}
+
+		write_to_log_2(fem, "get fixed nodes...\n", outFile);
+		// get fixed nodes
+		for (int i = 0; i < task->configure.fixed.size(); i++)
+		{
+			::std::string fixed_type = ::std::get<0>(task->configure.fixed[i]);
+			::std::string fixed_name = ::std::get<1>(task->configure.fixed[i]);
+
+			if (fixed_type == "nodeset")
+			{
+				for (int j = 0; j < mesh.NodeSets(); j++)
+				{
+					FENodeSet& nodeset = *(mesh.NodeSet(j));
+					::std::string nodeset_name = nodeset.GetName();
+					if (nodeset_name == fixed_name)
+					{
+						for (int k = 0; k < nodeset.Size(); k++)
+						{
+							int node_id = nodeset[k];
+
+							task->configure.fixednode.push_back(node_id);
+						}
+
+						break;
+					}
+				}
+			}
+			else if (fixed_type == "surface")
+			{
+				FEFacetSet* facetset = mesh.FindFacetSet(fixed_name);
+				if (facetset != nullptr)
+				{
+					FENodeList&& nodelist = facetset->GetNodeList();
+					for (int k = 0; k < nodelist.Size(); k++)
+					{
+						int node_id = nodelist[k];
+
+						task->configure.fixednode.push_back(node_id);
 					}
 
-					task->solution_elementsID.insert(task->solution_elementsID.end(), toadd.begin(), toadd.end());
 				}
 			}
 		}
-
-	}
-
-	write_to_log_2(fem, "get fixed nodes...\n", outFile);
-	// get fixed nodes
-	for (int i = 0; i < task->configure.fixed.size(); i++)
-	{
-		::std::string fixed_type = ::std::get<0>(task->configure.fixed[i]);
-		::std::string fixed_name = ::std::get<1>(task->configure.fixed[i]);
-
-		if (fixed_type == "nodeset")
-		{
-			for (int j = 0; j < mesh.NodeSets(); j++)
-			{
-				FENodeSet& nodeset = *(mesh.NodeSet(j));
-				::std::string nodeset_name = nodeset.GetName();
-				if (nodeset_name == fixed_name)
-				{
-					for (int k = 0; k < nodeset.Size(); k++)
-					{
-						int node_id = nodeset[k];
-
-						task->fixednode.push_back(node_id);
-					}
-
-					break;
-				}
-			}
-		}
-		else if (fixed_type == "surface")
-		{
-			FEFacetSet* facetset = mesh.FindFacetSet(fixed_name);
-			if (facetset != nullptr)
-			{
-				FENodeList&& nodelist = facetset->GetNodeList();
-				for (int k = 0; k < nodelist.Size(); k++)
-				{
-					int node_id = nodelist[k];
-
-					task->fixednode.push_back(node_id);
-				}
-				
-			}
-		}
-	}
 
 #pragma endregion
 
 #pragma region getAllInput
-	//number of cycles considered at the end
-	int numCycle = 2;
-	int nNode = nodes_number;
+		//number of cycles considered at the end
+		int numCycle = 2;
+		int nNode = nodes_number;
 
 
-	//::std::vector<int> sidenodes = { 12, 23, 56, 67, 66, 77, 22, 33 };
-	//// sidenodes -= 1
-	//for (int i = 0; i < sidenodes.size(); i++)
-	//{
-	//	sidenodes[i] -= 1;
-	//}
+		//::std::vector<int> sidenodes = { 12, 23, 56, 67, 66, 77, 22, 33 };
+		//// sidenodes -= 1
+		//for (int i = 0; i < sidenodes.size(); i++)
+		//{
+		//	sidenodes[i] -= 1;
+		//}
 
-	//// joint task->fixednode and sidenodes
-	//task->fixednode.insert(task->fixednode.end(), sidenodes.begin(), sidenodes.end());
-
-
-
-	//%% displacement at the initial timestep of the last two cycles
-	#pragma region readsavefile_dump
-
-	write_to_log_2(fem, "read from savefile dump...\n", outFile);
-	if (task->configure.isRead_FEMresult_fromsavefile == true)
-	{
-		DumpFile dumpfile(*fem);
-		dumpfile.Open(task->dumpfile.c_str());
-
-		dumpfile& task->timestep& task->timedisplacement& task->timestress;
-
-		dumpfile.Close();
-
-	}
-	else
-	{
-		DumpFile dumpfile(*fem);
-		dumpfile.Create(task->dumpfile.c_str());
-
-		dumpfile& task->timestep& task->timedisplacement& task->timestress;
-
-		dumpfile.Close();
-	}
-
-	// log: read save file end
-	write_to_log_2(fem, "read save file end\n", outFile);
-
-	#pragma endregion
+		//// joint task->configure.fixednode and sidenodes
+		//task->configure.fixednode.insert(task->configure.fixednode.end(), sidenodes.begin(), sidenodes.end());
 
 
-	FEAnalysis& laststep = *(fem->GetStep(fem->Steps() - 1));
 
-	// log: calculate timestep for VFM begin...
-	write_to_log_2(fem, "calculate timestep for VFM begin...\n", outFile);
+		//%% displacement at the initial timestep of the last two cycles
+#pragma region readsavefile_dump
 
-	double total_cycle_time = 60 / task->configure.bpm;
-	double sum_cycle_time = 0.0;
-	int start_index = 0;
-	for (int i = task->timestep.size() - 1; i >= 0; i--)
-	{
-		sum_cycle_time += task->timestep[i] - task->timestep[i - 1];
-
-		if (sum_cycle_time >= (total_cycle_time* numCycle))
+		write_to_log_2(fem, "read from savefile dump...\n", outFile);
+		if (task->configure.isRead_FEMresult_fromsavefile == true)
 		{
-			start_index= i;
-			break;
+			DumpFile dumpfile(*fem);
+			dumpfile.Open(task->dumpfile.c_str());
+
+			dumpfile& task->timestep& task->timedisplacement& task->timestress;
+
+			dumpfile.Close();
+
 		}
-	}
-
-	// log: calculate timestep for VFM end...
-	write_to_log_2(fem, "calculate timestep for VFM end...\n", outFile);
-	// log: start_index, sum_sycle_time
-	write_to_log_2(fem, "start_index: " + to_string(start_index) + " sum_cycle_time: " + to_string(sum_cycle_time) + "\n", outFile);
-
-	//int steps_per_cycle = 10; // 
-	//int nStep_total = task->timestep.size();
-
-	//int start_index = nStep_total - steps_per_cycle * numCycle;
-
-
-
-	// copy ::std::vector task->timedisplacement[nNode*(start_index-1)+1:nNode*start_index] as initialDisp
-	::std::vector<::std::vector<double>> initialDisp(task->timedisplacement[start_index-1]);
-	::std::vector<::std::vector<::std::vector<double>>> displacementArray(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
-	timeArray=::std::vector<double>(task->timestep.begin() + start_index, task->timestep.end());
-
-	::std::vector<::std::vector<double>> initialStress(task->timestress[start_index-1]);
-	::std::vector<::std::vector<::std::vector<double>>> stressArray(task->timestress.begin() + start_index, task->timestress.end());
-
-	::std::vector<::std::vector<::std::vector<double>>> velocityArray(displacementArray);//(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
-	::std::vector<::std::vector<::std::vector<double>>> accelerationArray(displacementArray);//(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
-
-	task->timestep.clear();
-	task->timedisplacement.clear();
-	task->timestress.clear();
-
-	for (int index_velocityArray = 0; index_velocityArray < velocityArray.size(); index_velocityArray++)
-	{
-		#pragma omp parallel for
-		for (int index_velocity = 0; index_velocity < velocityArray[index_velocityArray].size(); index_velocity++)
+		else
 		{
-			for (int index_coordinate = 0; index_coordinate < velocityArray[index_velocityArray][index_velocity].size(); index_coordinate++)
-			{
-				if (index_velocityArray == velocityArray.size() - 1)
-				{
-					velocityArray[index_velocityArray][index_velocity][index_coordinate] = (displacementArray[0][index_velocity][index_coordinate] - displacementArray[index_velocityArray][index_velocity][index_coordinate]) / (timeArray[index_velocityArray] - timeArray[index_velocityArray - 1]);
-				}
-				else
-				{
-					velocityArray[index_velocityArray][index_velocity][index_coordinate] = (displacementArray[index_velocityArray + 1][index_velocity][index_coordinate] - displacementArray[index_velocityArray][index_velocity][index_coordinate]) / (timeArray[index_velocityArray + 1] - timeArray[index_velocityArray]);
-				}
-				
-			}
+			DumpFile dumpfile(*fem);
+			dumpfile.Create(task->dumpfile.c_str());
+
+			dumpfile& task->timestep& task->timedisplacement& task->timestress;
+
+			dumpfile.Close();
 		}
-	}
 
-	for (int index_accelerationArray = 0; index_accelerationArray < accelerationArray.size(); index_accelerationArray++)
-	{
-		#pragma omp parallel for
-		for (int index_acceleration = 0; index_acceleration < accelerationArray[index_accelerationArray].size(); index_acceleration++)
+		// log: read save file end
+		write_to_log_2(fem, "read save file end\n", outFile);
+
+#pragma endregion
+
+
+		FEAnalysis& laststep = *(fem->GetStep(fem->Steps() - 1));
+
+		// log: calculate timestep for VFM begin...
+		write_to_log_2(fem, "calculate timestep for VFM begin...\n", outFile);
+
+		double total_cycle_time = 60 / task->configure.bpm;
+		double sum_cycle_time = 0.0;
+		int start_index = 0;
+		for (int i = task->timestep.size() - 1; i >= 0; i--)
 		{
-			for (int index_coordinate = 0; index_coordinate < accelerationArray[index_accelerationArray][index_acceleration].size(); index_coordinate++)
+			sum_cycle_time += task->timestep[i] - task->timestep[i - 1];
+
+			if (sum_cycle_time >= (total_cycle_time * numCycle))
 			{
-				if (index_accelerationArray == accelerationArray.size() - 1)
-				{
-					accelerationArray[index_accelerationArray][index_acceleration][index_coordinate] = (velocityArray[0][index_acceleration][index_coordinate] - velocityArray[index_accelerationArray][index_acceleration][index_coordinate]) / (timeArray[index_accelerationArray] - timeArray[index_accelerationArray - 1]);
-				}
-				else
-				{
-					accelerationArray[index_accelerationArray][index_acceleration][index_coordinate] = (velocityArray[index_accelerationArray + 1][index_acceleration][index_coordinate] - velocityArray[index_accelerationArray][index_acceleration][index_coordinate]) / (timeArray[index_accelerationArray + 1] - timeArray[index_accelerationArray]);
-				}
-			}
-		}
-	}
-
-	// task->initialCoordinate = task->initialCoordinate + initialDisp
-	#pragma omp parallel for
-	for (int index_initialCoordinate = 0; index_initialCoordinate < task->initialCoordinate.size(); index_initialCoordinate++)
-	{
-		for (int index_displacement = 0; index_displacement < task->initialCoordinate[index_initialCoordinate].size(); index_displacement++)
-		{
-			task->initialCoordinate[index_initialCoordinate][index_displacement] += initialDisp[index_initialCoordinate][index_displacement];
-		}
-	}
-
-	for (int index_displacementArray = 0; index_displacementArray < displacementArray.size(); index_displacementArray++)
-	{
-		#pragma omp parallel for
-		for (int index_displacement = 0; index_displacement < displacementArray[index_displacementArray].size(); index_displacement++)
-		{
-			for (int index_coordinate = 0; index_coordinate < displacementArray[index_displacementArray][index_displacement].size(); index_coordinate++)
-			{
-				displacementArray[index_displacementArray][index_displacement][index_coordinate] -= initialDisp[index_displacement][index_coordinate];
-			}
-		}
-	}
-
-
-	task->nVirtualFields = 4;
-
-	#pragma region getAllVirtualFields
-
-	::std::string logs_vf = "Start get all Virtual Fields.\n";
-	write_log(fem, 0, logs_vf.c_str());
-	outFile << logs_vf;
-
-	::std::vector<::std::function<::std::vector<double>(const ::std::vector<double>&, int )>> vf_u_functions;
-
-	auto radius = 0.8;
-	auto height = 0.4;
-
-	double x_r_0 = 0.0;
-	double y_r_0 = 0.0;
-	double z_r_0 = 0.0;
-
-	double x_r_t = 1.0;
-	double y_r_t = 1.0;
-	double z_r_t = 1.0;
-
-	// BPM_base_v4_BPM
-		#pragma region BPM_base_v4_BPM
-	radius = 1.6;
-	height = 1;
-
-	x_r_0 = 142.185;
-	y_r_0 = 141.782;
-	z_r_0 = 0;
-	x_r_t = 1.0;
-	y_r_t = 1.0;
-	z_r_t = 1.0;
-
-	double x_min = 140.185;
-	double x_max = 144.185;
-	double y_min = 141.289;
-	double y_max = 143.289;
-	double z_min = -2.0;
-	double z_max = 2.0;
-
-	double x_p = 1;
-	double y_p = 1;
-	double z_p = 1;
-
-	auto it = ::std::remove_if(task->solution_elementsID.begin(), task->solution_elementsID.end(),
-		[=, &mesh, &task](int j)->bool {
-			FEElement& element = *(mesh.Element(j));
-
-			::std::vector<int> no_inrange_point_number;
-			for (int k = 0; k < element.Nodes(); k++)
-			{
-				int node_id = element.m_node[k];
-				auto& node = mesh.Node(node_id);
-
-				double x = task->initialCoordinate[node_id][0];
-				double y = task->initialCoordinate[node_id][1];
-				double z = task->initialCoordinate[node_id][2];
-
-				double x_r = (x - x_r_0) / x_r_t;
-				double y_r = (y - y_r_0) / y_r_t;
-				double z_r = (z - z_r_0) / z_r_t;
-
-				double rho = ::std::sqrt(x_r * x_r + z_r * z_r);
-				double theta = ::std::atan2(z_r, x_r);
-
-
-				// if x,y,z not in range, remove this solution element
-				if (rho > 0.5 || y < y_min || y > y_max)
-				{
-					no_inrange_point_number.push_back(k);
-				}
-			}
-
-			if (no_inrange_point_number.size() == element.Nodes())
-			{
-				return true;
-			}
-			else
-			{
-				// add node id to fixednode
-				for (int k = 0; k < no_inrange_point_number.size(); k++)
-				{
-					task->fixednode.push_back(element.m_node[no_inrange_point_number[k]]);
-				}
-				return false;
-			}
-		});
-	task->solution_elementsID.erase(it, task->solution_elementsID.end());
-
-	solution_elementsDomainID = ::std::vector<int>(task->solution_elementsID.size());
-	#pragma omp parallel for
-	for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
-	{
-		int elementid = task->solution_elementsID[index_seId];
-
-		int domain_id = -1;
-		for (int i = 0; i < mesh.Domains(); i++)
-		{
-			FEDomain& d = mesh.Domain(i);
-			auto* elementfound = d.FindElementFromID(elementid);
-			if (elementfound != nullptr)
-			{
-				domain_id = i;
+				start_index = i;
 				break;
 			}
 		}
-		if (domain_id == -1)
+
+		// log: calculate timestep for VFM end...
+		write_to_log_2(fem, "calculate timestep for VFM end...\n", outFile);
+		// log: start_index, sum_sycle_time
+		write_to_log_2(fem, "start_index: " + to_string(start_index) + " sum_cycle_time: " + to_string(sum_cycle_time) + "\n", outFile);
+
+		//int steps_per_cycle = 10; // 
+		//int nStep_total = task->timestep.size();
+
+		//int start_index = nStep_total - steps_per_cycle * numCycle;
+
+
+
+		// copy ::std::vector task->timedisplacement[nNode*(start_index-1)+1:nNode*start_index] as initialDisp
+		::std::vector<::std::vector<double>> initialDisp(task->timedisplacement[start_index - 1]);
+		::std::vector<::std::vector<::std::vector<double>>> displacementArray(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
+		timeArray = ::std::vector<double>(task->timestep.begin() + start_index, task->timestep.end());
+
+		::std::vector<::std::vector<double>> initialStress(task->timestress[start_index - 1]);
+		::std::vector<::std::vector<::std::vector<double>>> stressArray(task->timestress.begin() + start_index, task->timestress.end());
+
+		::std::vector<::std::vector<::std::vector<double>>> velocityArray(displacementArray);//(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
+		::std::vector<::std::vector<::std::vector<double>>> accelerationArray(displacementArray);//(task->timedisplacement.begin() + start_index, task->timedisplacement.end());
+
+		task->timestep.clear();
+		task->timedisplacement.clear();
+		task->timestress.clear();
+
+		for (int index_velocityArray = 0; index_velocityArray < velocityArray.size(); index_velocityArray++)
 		{
-			throw ::std::runtime_error("no domain found for element");
-		}
-
-		solution_elementsDomainID[index_seId] = domain_id;
-	}
-
-	// string stream
-	::std::stringstream elementset_ss;
-	int line_number = 0;
-	int line_number_max = 7;
-	for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
-	{
-		int elementid = task->solution_elementsID[index_seId];
-		elementset_ss << (elementid+1);
-		if (line_number >= line_number_max)
-		{
-			elementset_ss << ",\n";
-
-			line_number = 0;
-		}
-		else
-		{
-			elementset_ss << ", ";
-
-			line_number++;
-		}
-	}
-	::std::string elementset_string = elementset_ss.str();
-
-	::std::stringstream fixednodeset_ss;
-	line_number = 0;
-	line_number_max = 7;
-	for (int index_fnId = 0; index_fnId < task->fixednode.size(); index_fnId++)
-	{
-		int nodeid = task->fixednode[index_fnId];
-		fixednodeset_ss << (nodeid+1);
-		if (line_number >= line_number_max)
-		{
-			fixednodeset_ss << ",\n";
-
-			line_number = 0;
-		}
-		else
-		{
-			fixednodeset_ss << ", ";
-
-			line_number++;
-		}
-	}
-	::std::string fixednodeset_string = fixednodeset_ss.str();
-		#pragma endregion
-
-		#pragma region initialDeformationGradient
-	// set initial displacement to nodes
-	write_to_log_2(fem, "Set initial displacement to nodes.\n", outFile);
-
-	#pragma omp parallel for
-	for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
-	{
-		int j = task->solution_elementsID[index_seId];
-
-		FEElement& element = *(mesh.Element(j));
-
-		for (int k = 0; k < element.Nodes(); k++)
-		{
-			int node_id = element.m_node[k];
-			auto& node = mesh.Node(node_id);
-			node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-			node.m_rt = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-			node.m_rp = { 0,0,0 };
-			node.m_d0 = { 0,0,0 };
-			node.m_dt = { 0,0,0 };
-			node.m_dp = { 0,0,0 };
-
-		}
-
-		FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
-
-		try
-		{
-			domain_init(mesh, static_cast<FESolidElement&>(element), domain);
-		}
-		catch (NegativeJacobian& e)
-		{
-			throw e;
-		}
-
-	}
-
-	trueJArray = ::std::vector<::std::vector<::std::vector<double>>>(timeArray.size());
-	truedeformationGradientArray = ::std::vector<::std::vector<::std::vector<mat3d>>>(timeArray.size());
-
-	for (int index_timestep = 0; index_timestep < timeArray.size(); index_timestep++)
-	{
-		::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
-		#pragma omp parallel for
-		for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
-		{
-			for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
+#pragma omp parallel for
+			for (int index_velocity = 0; index_velocity < velocityArray[index_velocityArray].size(); index_velocity++)
 			{
-				currentCoordinate[index_coordinate_i][index_coordinate_j] += displacementArray[index_timestep][index_coordinate_i][index_coordinate_j];
+				for (int index_coordinate = 0; index_coordinate < velocityArray[index_velocityArray][index_velocity].size(); index_coordinate++)
+				{
+					if (index_velocityArray == velocityArray.size() - 1)
+					{
+						velocityArray[index_velocityArray][index_velocity][index_coordinate] = (displacementArray[0][index_velocity][index_coordinate] - displacementArray[index_velocityArray][index_velocity][index_coordinate]) / (timeArray[index_velocityArray] - timeArray[index_velocityArray - 1]);
+					}
+					else
+					{
+						velocityArray[index_velocityArray][index_velocity][index_coordinate] = (displacementArray[index_velocityArray + 1][index_velocity][index_coordinate] - displacementArray[index_velocityArray][index_velocity][index_coordinate]) / (timeArray[index_velocityArray + 1] - timeArray[index_velocityArray]);
+					}
+
+				}
 			}
 		}
+
+		for (int index_accelerationArray = 0; index_accelerationArray < accelerationArray.size(); index_accelerationArray++)
+		{
+#pragma omp parallel for
+			for (int index_acceleration = 0; index_acceleration < accelerationArray[index_accelerationArray].size(); index_acceleration++)
+			{
+				for (int index_coordinate = 0; index_coordinate < accelerationArray[index_accelerationArray][index_acceleration].size(); index_coordinate++)
+				{
+					if (index_accelerationArray == accelerationArray.size() - 1)
+					{
+						accelerationArray[index_accelerationArray][index_acceleration][index_coordinate] = (velocityArray[0][index_acceleration][index_coordinate] - velocityArray[index_accelerationArray][index_acceleration][index_coordinate]) / (timeArray[index_accelerationArray] - timeArray[index_accelerationArray - 1]);
+					}
+					else
+					{
+						accelerationArray[index_accelerationArray][index_acceleration][index_coordinate] = (velocityArray[index_accelerationArray + 1][index_acceleration][index_coordinate] - velocityArray[index_accelerationArray][index_acceleration][index_coordinate]) / (timeArray[index_accelerationArray + 1] - timeArray[index_accelerationArray]);
+					}
+				}
+			}
+		}
+
+		// task->initialCoordinate = task->initialCoordinate + initialDisp
+#pragma omp parallel for
+		for (int index_initialCoordinate = 0; index_initialCoordinate < task->initialCoordinate.size(); index_initialCoordinate++)
+		{
+			for (int index_displacement = 0; index_displacement < task->initialCoordinate[index_initialCoordinate].size(); index_displacement++)
+			{
+				task->initialCoordinate[index_initialCoordinate][index_displacement] += initialDisp[index_initialCoordinate][index_displacement];
+			}
+		}
+
+		for (int index_displacementArray = 0; index_displacementArray < displacementArray.size(); index_displacementArray++)
+		{
+#pragma omp parallel for
+			for (int index_displacement = 0; index_displacement < displacementArray[index_displacementArray].size(); index_displacement++)
+			{
+				for (int index_coordinate = 0; index_coordinate < displacementArray[index_displacementArray][index_displacement].size(); index_coordinate++)
+				{
+					displacementArray[index_displacementArray][index_displacement][index_coordinate] -= initialDisp[index_displacement][index_coordinate];
+				}
+			}
+		}
+
+
+		task->nVirtualFields = 4;
+
+#pragma region getAllVirtualFields
+
+		::std::string logs_vf = "Start get all Virtual Fields.\n";
+		write_log(fem, 0, logs_vf.c_str());
+		outFile << logs_vf;
+
+		::std::vector<::std::function<::std::vector<double>(const ::std::vector<double>&, int)>> vf_u_functions;
+
+		if constexpr (ONH_sinPulse100s_120_v4)
+		{
+			double radius = 0.8;
+			double height = 0.4;
+
+			double x_r_0 = 0.0;
+			double y_r_0 = 0.0;
+			double z_r_0 = 0.0;
+
+			double x_r_t = 1.0;
+			double y_r_t = 1.0;
+			double z_r_t = 1.0;
+		}
+
+
+		// BPM_base_v4_BPM
+#pragma region BPM_base_v4_BPM
+		if constexpr (BPM_base_v4_BPM)
+		{
+			double radius = 1.6;
+			double height = 1.0;
+
+			double x_r_0 = 142.185;
+			double y_r_0 = 141.782;
+			double z_r_0 = 0;
+			double x_r_t = 1.0;
+			double y_r_t = 1.0;
+			double z_r_t = 1.0;
+
+			double x_min = 140.185;
+			double x_max = 144.185;
+			double y_min = 141.289;
+			double y_max = 143.289;
+			double z_min = -2.0;
+			double z_max = 2.0;
+
+			double x_p = 1;
+			double y_p = 1;
+			double z_p = 1;
+
+			auto it = ::std::remove_if(task->solution_elementsID.begin(), task->solution_elementsID.end(),
+				[=, &mesh, &task](int j)->bool {
+					FEElement& element = *(mesh.Element(j));
+
+					::std::vector<int> no_inrange_point_number;
+					for (int k = 0; k < element.Nodes(); k++)
+					{
+						int node_id = element.m_node[k];
+						auto& node = mesh.Node(node_id);
+
+						double x = task->initialCoordinate[node_id][0];
+						double y = task->initialCoordinate[node_id][1];
+						double z = task->initialCoordinate[node_id][2];
+
+						double x_r = (x - x_r_0) / x_r_t;
+						double y_r = (y - y_r_0) / y_r_t;
+						double z_r = (z - z_r_0) / z_r_t;
+
+						double rho = ::std::sqrt(x_r * x_r + z_r * z_r);
+						double theta = ::std::atan2(z_r, x_r);
+
+
+						// if x,y,z not in range, remove this solution element
+						if (rho > 0.5 || y < y_min || y > y_max)
+						{
+							no_inrange_point_number.push_back(k);
+						}
+					}
+
+					if (no_inrange_point_number.size() == element.Nodes())
+					{
+						return true;
+					}
+					else
+					{
+						// add node id to fixednode
+						for (int k = 0; k < no_inrange_point_number.size(); k++)
+						{
+							task->configure.fixednode.push_back(element.m_node[no_inrange_point_number[k]]);
+						}
+						return false;
+					}
+				});
+			task->solution_elementsID.erase(it, task->solution_elementsID.end());
+		}
+		
+		
+		// show all element id in mesh.Domain(0)
+		//FEDomain& d0= mesh.Domain(0);
+		//int d0en=d0.Elements();
+		//for (int i = 0; i < d0en; i++)
+		//{
+		//	FEElement& element = d0.ElementRef(i);
+		//	int element_id = element.GetID();
+		//	::std::string logs = "element id: " + to_string(element_id) + "\n";
+		//	write_log(fem, 0, logs.c_str());
+		//	outFile << logs;
+		//}
+
+		solution_elementsDomainID = ::std::vector<int>(task->solution_elementsID.size());
 		#pragma omp parallel for
+		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
+		{
+			int elementid = task->solution_elementsID[index_seId];
+
+			int domain_id = -1;
+			for (int i = 0; i < mesh.Domains(); i++)
+			{
+				FEDomain& d = mesh.Domain(i);
+				auto* elementfound = d.FindElementFromID(elementid+1);
+				if (elementfound != nullptr)
+				{
+					domain_id = i;
+					break;
+				}
+			}
+			if (domain_id == -1)
+			{
+				throw ::std::runtime_error("no domain found for element");
+			}
+
+			solution_elementsDomainID[index_seId] = domain_id;
+		}
+
+		// string stream
+		::std::stringstream elementset_ss;
+		int line_number = 0;
+		int line_number_max = 7;
+		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
+		{
+			int elementid = task->solution_elementsID[index_seId];
+			elementset_ss << (elementid + 1);
+			if (line_number >= line_number_max)
+			{
+				elementset_ss << ",\n";
+
+				line_number = 0;
+			}
+			else
+			{
+				elementset_ss << ", ";
+
+				line_number++;
+			}
+		}
+		::std::string elementset_string = elementset_ss.str();
+
+		::std::stringstream fixednodeset_ss;
+		line_number = 0;
+		line_number_max = 7;
+		for (int index_fnId = 0; index_fnId < task->configure.fixednode.size(); index_fnId++)
+		{
+			int nodeid = task->configure.fixednode[index_fnId];
+			fixednodeset_ss << (nodeid + 1);
+			if (line_number >= line_number_max)
+			{
+				fixednodeset_ss << ",\n";
+
+				line_number = 0;
+			}
+			else
+			{
+				fixednodeset_ss << ", ";
+
+				line_number++;
+			}
+		}
+		::std::string fixednodeset_string = fixednodeset_ss.str();
+		
+#pragma endregion
+
+#pragma region initialDeformationGradient
+		// set initial displacement to nodes
+		write_to_log_2(fem, "Set initial displacement to nodes.\n", outFile);
+
+#pragma omp parallel for
 		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 		{
 			int j = task->solution_elementsID[index_seId];
@@ -650,538 +632,43 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			{
 				int node_id = element.m_node[k];
 				auto& node = mesh.Node(node_id);
-				node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] }; // true displacement as initial displacement.
-				node.m_d0 = { 0,0,0 };
-				node.m_rt = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // move to virtual displacement
-				node.m_dt = { 0,0,0 };
+				node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
+				node.m_rt = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
 				node.m_rp = { 0,0,0 };
+				node.m_d0 = { 0,0,0 };
+				node.m_dt = { 0,0,0 };
 				node.m_dp = { 0,0,0 };
+
 			}
 
 			FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
 
-			domain_init(mesh, static_cast<FESolidElement&>(element), domain);
-		}
-
-		trueJArray[index_timestep] = ::std::vector<::std::vector<double>>(task->solution_elementsID.size());
-		truedeformationGradientArray[index_timestep] = ::std::vector<::std::vector<mat3d>>(task->solution_elementsID.size());
-
-		#pragma omp parallel for
-		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
-		{
-			int j = task->solution_elementsID[index_seId];
-
-			FEElement& element = *(mesh.Element(j));
-			int nodes_number = element.Nodes();
-
-			// convert element to solid element
-			FESolidElement& solidElement = static_cast<FESolidElement&>(element);
-
-			// get domain
-			FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
-
-			trueJArray[index_timestep][index_seId]=::std::vector<double>(solidElement.GaussPoints());
-			truedeformationGradientArray[index_timestep][index_seId] = ::std::vector<mat3d>(solidElement.GaussPoints());
-			for (int n = 0; n < solidElement.GaussPoints(); n++)
+			try
 			{
-				// get element's stress
-				FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
-				FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
-
-				double Jc;
-				mat3d Ft, Fp;
-
-				// need recalculate
-				// calculate inverse jacobian
-				try
-				{
-					Jc = domain_defgrad_GJ(domain, solidElement, Ft, n);
-					//domain.defgradp(solidElement, Fp, n);
-				}
-				catch (NegativeJacobian& e)
-				{
-					double Jt = Ft.det();
-					if (::std::abs(Jt) < 1e-10)
-					{
-
-					}
-					else
-					{
-						throw e; // don't continue execution!!!!
-					}
-
-				}
-
-				if (j == 35072)
-				{
-					int awer23dsfcsafwerf = 0;
-				}
-
-				pt.m_F = Ft;
-				pt.m_J = Ft.det();
-
-				trueJArray[index_timestep][index_seId][n] = Jc;
-				truedeformationGradientArray[index_timestep][index_seId][n] = Ft;
+				domain_init(mesh, static_cast<FESolidElement&>(element), domain);
+			}
+			catch (NegativeJacobian& e)
+			{
+				throw e;
 			}
 
-
 		}
-	}
 
+		trueJArray = ::std::vector<::std::vector<::std::vector<double>>>(timeArray.size());
+		truedeformationGradientArray = ::std::vector<::std::vector<::std::vector<mat3d>>>(timeArray.size());
 
-		#pragma endregion
-
-	auto& task_fixednode = task->fixednode;
-
-		#pragma region ONH_sinPulse100s_120_v4
-	//vf_u_functions[0] = [&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-	//{
-	//	auto x = coordinate[0];
-	//	auto y = coordinate[1];
-	//	auto z = coordinate[2];
-
-	//	x = (x - x_r_0) * x_r_t;
-	//	y = (y - y_r_0) * y_r_t;
-	//	z = (z - z_r_0) * z_r_t;
-
-	//	::std::vector<double> vf_u(3);
-	//	vf_u[0] = (radius - ::std::abs(x)) * x / height; //2d
-	//	//vf_u[0] = (radius - ::std::abs(x)) * x / height / ::std::sqrt(2); // BPM_base_v4_BPM
-	//	vf_u[1] = -1 * (radius - ::std::abs(x)) * ::std::abs(y) / height;
-	//	vf_u[2] = 0; //2d
-	//	//vf_u[2] = (radius - ::std::abs(z)) * z / height / ::std::sqrt(2); // BPM_base_v4_BPM
-
-
-	//	// find fixed node and set virtual field to zero
-	//	if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-	//	{
-	//		vf_u[0] = 0;
-	//		vf_u[1] = 0;
-	//		vf_u[2] = 0;
-	//	}
-
-	//	return vf_u;
-	//};
-	//vf_u_functions[1] = [&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-	//{
-	//	auto x = coordinate[0];
-	//	auto y = coordinate[1];
-	//	auto z = coordinate[2];
-
-	//	x = (x - x_r_0) * x_r_t;
-	//	y = (y - y_r_0) * y_r_t;
-	//	z = (z - z_r_0) * z_r_t;
-
-	//	::std::vector<double> vf_u(3);
-
-	//	vf_u[0] = 0;
-	//	vf_u[1] = (radius - ::std::abs(x)) * ::std::abs(y) / height;
-	//	vf_u[2] = 0;
-
-	//	// find fixed node and set virtual field to zero
-	//	if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-	//	{
-	//		vf_u[0] = 0;
-	//		vf_u[1] = 0;
-	//		vf_u[2] = 0;
-	//	}
-
-	//	return vf_u;
-	//};
-	//vf_u_functions[2] = [&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-	//{
-	//	auto x = coordinate[0];
-	//	auto y = coordinate[1];
-	//	auto z = coordinate[2];
-
-	//	x = (x - x_r_0) * x_r_t;
-	//	y = (y - y_r_0) * y_r_t;
-	//	z = (z - z_r_0) * z_r_t;
-
-	//	::std::vector<double> vf_u(3);
-
-	//	vf_u[0] = ::std::cos(0.5 * PI * ::std::abs(x) / radius) * x / height; //2d
-	//	//vf_u[0] = ::std::cos(0.5 * PI * ::std::abs(x) / radius) * x / height / ::std::sqrt(2); // BPM_base_v4_BPM
-	//	vf_u[1] = -1 * ::std::cos(0.5 * PI * ::std::abs(x) / radius) * ::std::abs(y) / height;
-	//	vf_u[2] = 0; //2d
-	//	//vf_u[2] = ::std::cos(0.5 * PI * ::std::abs(z) / radius) * z / height / ::std::sqrt(2); // BPM_base_v4_BPM
-
-	//	// find fixed node and set virtual field to zero
-	//	if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-	//	{
-	//		vf_u[0] = 0;
-	//		vf_u[1] = 0;
-	//		vf_u[2] = 0;
-	//	}
-
-	//	return vf_u;
-	//};
-	//vf_u_functions[3] = [&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-	//{
-	//	auto x = coordinate[0];
-	//	auto y = coordinate[1];
-	//	auto z = coordinate[2];
-
-	//	x = (x - x_r_0) * x_r_t;
-	//	y = (y - y_r_0) * y_r_t;
-	//	z = (z - z_r_0) * z_r_t;
-
-	//	::std::vector<double> vf_u(3);
-
-	//	vf_u[0] = 0;
-	//	vf_u[1] = ::std::cos(0.5 * PI * abs(x) / radius) * ::std::abs(y) / height;
-	//	vf_u[2] = 0;
-
-	//	// find fixed node and set virtual field to zero
-	//	if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-	//	{
-	//		vf_u[0] = 0;
-	//		vf_u[1] = 0;
-	//		vf_u[2] = 0;
-	//	}
-
-	//	return vf_u;
-	//};
-
-		#pragma endregion
-
-
-
-	auto& task_initialCoordinate = task->initialCoordinate;
-
-	const int CONST_VF_select = 1;// up
-
-	if constexpr (CONST_VF_select == 0) // up
-	{
-		vf_u_functions.push_back([&task_fixednode, &task_initialCoordinate](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-			{
-				::std::vector<double> vf_u(3);
-
-				vf_u[0] = 0.0001;
-				vf_u[1] = 0;
-				vf_u[2] = 0;
-
-				// find fixed node and set virtual field to zero
-				if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-				{
-					vf_u[0] = 0;
-					vf_u[1] = 0;
-					vf_u[2] = 0;
-				}
-
-				return vf_u;
-			});
-		vf_u_functions.push_back([&task_fixednode, &task_initialCoordinate](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-			{
-				::std::vector<double> vf_u(3);
-
-				vf_u[0] = 0;
-				vf_u[1] = 0.0001;
-				vf_u[2] = 0;
-
-				// find fixed node and set virtual field to zero
-				if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-				{
-					vf_u[0] = 0;
-					vf_u[1] = 0;
-					vf_u[2] = 0;
-				}
-
-				return vf_u;
-			});
-		vf_u_functions.push_back([&task_fixednode, &task_initialCoordinate](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-			{
-				::std::vector<double> vf_u(3);
-
-				vf_u[0] = 0;
-				vf_u[1] = 0;
-				vf_u[2] = 0.0001;
-
-				// find fixed node and set virtual field to zero
-				if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-				{
-					vf_u[0] = 0;
-					vf_u[1] = 0;
-					vf_u[2] = 0;
-				}
-
-				return vf_u;
-			});
-	}
-	else
-	{
-		const bool CONST_bpm_base_v4_true_disp_vf_u = false;
-		if constexpr (CONST_bpm_base_v4_true_disp_vf_u == true)
+		for (int index_timestep = 0; index_timestep < timeArray.size(); index_timestep++)
 		{
-
-			vf_u_functions.push_back([&task_fixednode, &task_initialCoordinate](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-				{
-					::std::vector<double> vf_u(3);
-
-					vf_u[0] = coordinate[0] - task_initialCoordinate[index_coordinate][0];
-					vf_u[1] = coordinate[1] - task_initialCoordinate[index_coordinate][1];
-					vf_u[2] = coordinate[2] - task_initialCoordinate[index_coordinate][2];
-
-					// find fixed node and set virtual field to zero
-					if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-					{
-						vf_u[0] = 0;
-						vf_u[1] = 0;
-						vf_u[2] = 0;
-					}
-
-					return vf_u;
-				});
-		}
-		else
-		{
-#pragma region BPM_base_v4_BPM
-			const bool CONST_bpm_base_v4_only_one_vf_u = false;
-			if constexpr (CONST_bpm_base_v4_only_one_vf_u == false)
+			::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
+#pragma omp parallel for
+			for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
 			{
-				vf_u_functions.push_back([&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t, x_p, y_p, z_p](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-					{
-						auto x = coordinate[0];
-						auto y = coordinate[1];
-						auto z = coordinate[2];
-
-						x = (x - x_r_0) * x_r_t;
-						y = (y - y_r_0) * y_r_t;
-						z = (z - z_r_0) * z_r_t;
-
-						double r = ::std::sqrt(x * x + z * z);
-						double w = ::std::atan2(z, x);
-						double h = y;
-
-						double ur = ::std::sin(2 * PI * r / radius) * h / height;
-						double uw = 0;
-						double uh = 0;
-
-						::std::vector<double> vf_u(3);
-						vf_u[0] = (r + ur) * ::std::cos(w + uw) - x;
-						vf_u[1] = uh;
-						vf_u[2] = (r + ur) * ::std::sin(w + uw) - z;
-
-						vf_u[0] *= x_p;
-						vf_u[1] *= y_p;
-						vf_u[2] *= z_p;
-
-						// find fixed node and set virtual field to zero
-						if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-						{
-							vf_u[0] = 0;
-							vf_u[1] = 0;
-							vf_u[2] = 0;
-						}
-
-						return vf_u;
-					});
-				vf_u_functions.push_back([&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t, x_p, y_p, z_p](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-					{
-						auto x = coordinate[0];
-						auto y = coordinate[1];
-						auto z = coordinate[2];
-
-						x = (x - x_r_0) * x_r_t;
-						y = (y - y_r_0) * y_r_t;
-						z = (z - z_r_0) * z_r_t;
-
-						double r = ::std::sqrt(x * x + z * z);
-						double w = ::std::atan2(z, x);
-						double h = y;
-
-						double ur = r * (radius - r) * (radius / 2 - r) * h / height;
-						double uw = 0;
-						double uh = 0;
-
-						::std::vector<double> vf_u(3);
-						vf_u[0] = (r + ur) * ::std::cos(w + uw) - x;
-						vf_u[1] = uh;
-						vf_u[2] = (r + ur) * ::std::sin(w + uw) - z;
-
-						vf_u[0] *= x_p;
-						vf_u[1] *= y_p;
-						vf_u[2] *= z_p;
-
-						// find fixed node and set virtual field to zero
-						if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-						{
-							vf_u[0] = 0;
-							vf_u[1] = 0;
-							vf_u[2] = 0;
-						}
-
-						return vf_u;
-					});
-				vf_u_functions.push_back([&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t, x_p, y_p, z_p](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-					{
-						auto x = coordinate[0];
-						auto y = coordinate[1];
-						auto z = coordinate[2];
-
-						x = (x - x_r_0) * x_r_t;
-						y = (y - y_r_0) * y_r_t;
-						z = (z - z_r_0) * z_r_t;
-
-						double r = ::std::sqrt(x * x + z * z);
-						double w = ::std::atan2(z, x);
-						double h = y;
-
-						double ur = 0;
-						double uw = ::std::sin(2 * PI * r / radius) * h / height / r;
-						double uh = 0;
-
-						::std::vector<double> vf_u(3);
-						vf_u[0] = (r + ur) * ::std::cos(w + uw) - x;
-						vf_u[1] = uh;
-						vf_u[2] = (r + ur) * ::std::sin(w + uw) - z;
-
-						vf_u[0] *= x_p;
-						vf_u[1] *= y_p;
-						vf_u[2] *= z_p;
-
-						// find fixed node and set virtual field to zero
-						if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-						{
-							vf_u[0] = 0;
-							vf_u[1] = 0;
-							vf_u[2] = 0;
-						}
-
-						return vf_u;
-					});
-				vf_u_functions.push_back([&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t, x_p, y_p, z_p](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-					{
-						auto x = coordinate[0];
-						auto y = coordinate[1];
-						auto z = coordinate[2];
-
-						x = (x - x_r_0) * x_r_t;
-						y = (y - y_r_0) * y_r_t;
-						z = (z - z_r_0) * z_r_t;
-
-						double r = ::std::sqrt(x * x + z * z);
-						double w = ::std::atan2(z, x);
-						double h = y;
-
-						double ur = 0;
-						double uw = (radius - r) * (radius / 2 - r) * h / height;
-						double uh = 0;
-
-						::std::vector<double> vf_u(3);
-						vf_u[0] = (r + ur) * ::std::cos(w + uw) - x;
-						vf_u[1] = uh;
-						vf_u[2] = (r + ur) * ::std::sin(w + uw) - z;
-
-						vf_u[0] *= x_p;
-						vf_u[1] *= y_p;
-						vf_u[2] *= z_p;
-
-						// find fixed node and set virtual field to zero
-						if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-						{
-							vf_u[0] = 0;
-							vf_u[1] = 0;
-							vf_u[2] = 0;
-						}
-
-						return vf_u;
-					});
+				for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
+				{
+					currentCoordinate[index_coordinate_i][index_coordinate_j] += displacementArray[index_timestep][index_coordinate_i][index_coordinate_j];
+				}
 			}
-			vf_u_functions.push_back([&task_fixednode, radius, height, x_r_0, y_r_0, z_r_0, x_r_t, y_r_t, z_r_t, x_p, y_p, z_p](const ::std::vector<double>& coordinate, int index_coordinate) -> ::std::vector<double>
-				{
-					auto x = coordinate[0];
-					auto y = coordinate[1];
-					auto z = coordinate[2];
-
-					x = (x - x_r_0) * x_r_t;
-					y = (y - y_r_0) * y_r_t;
-					z = (z - z_r_0) * z_r_t;
-
-					double r = ::std::sqrt(x * x + z * z);
-					double w = ::std::atan2(z, x);
-					double h = y;
-
-					double ur = 0;
-					double uw = 0;
-					double uh = ::std::sin(PI * (radius - r) / 2 / radius) * h / height;
-
-					::std::vector<double> vf_u(3);
-					vf_u[0] = (r + ur) * ::std::cos(w + uw) - x;
-					vf_u[1] = uh;
-					vf_u[2] = (r + ur) * ::std::sin(w + uw) - z;
-
-					vf_u[0] *= x_p;
-					vf_u[1] *= y_p;
-					vf_u[2] *= z_p;
-
-					// find fixed node and set virtual field to zero
-					if (::std::find(task_fixednode.begin(), task_fixednode.end(), index_coordinate) != task_fixednode.end())
-					{
-						vf_u[0] = 0;
-						vf_u[1] = 0;
-						vf_u[2] = 0;
-					}
-
-					return vf_u;
-				});
-#pragma endregion
-		}
-
-	}
-
-	#pragma endregion
-
-
-	#pragma region deformationGradient
-
-	// VirtualWork
-	externalVirtualWork = ::std::vector<::std::vector<double>>(timeArray.size());
-
-	volumeVirtualWork = ::std::vector<::std::vector<double>>(timeArray.size());
-
-	write_to_log_2(fem, "Attemp to calculate virtual work.\n", outFile);
-
-	virtualstrainArrayV = ::std::vector<::std::vector<::std::vector<::std::vector<mat3ds>>>>(timeArray.size()); // virtual strain : timestep, vf, element
-
-	// foreach timestep
-	for (int index_timestep = 0; index_timestep < timeArray.size(); index_timestep++)
-	{
-		write_to_log_2(fem, "timestep:" + ::std::to_string(index_timestep) + "\n", outFile);
-
-		::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
-		#pragma omp parallel for
-		for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
-		{
-			for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
-			{
-				currentCoordinate[index_coordinate_i][index_coordinate_j] += displacementArray[index_timestep][index_coordinate_i][index_coordinate_j];
-			}
-		}
-
-		// true stress for parameters
-		write_to_log_2(fem, "get true stress.\n", outFile);
-
-		::std::vector<::std::vector<double>>& currentStress=stressArray[index_timestep];
-
-		::std::vector<double> ivw(vf_u_functions.size()); // internalVirtualWork
-		::std::vector<double> evw(vf_u_functions.size()); // externalVirtualWork
-
-
-
-		// virtual field
-		write_to_log_2(fem, "Cal virtual field.\n", outFile);
-
-		virtualstrainArrayV[index_timestep] = ::std::vector<::std::vector<::std::vector<mat3ds>>>(vf_u_functions.size());
-		externalVirtualWork[index_timestep] = ::std::vector<double>(vf_u_functions.size());
-		volumeVirtualWork[index_timestep] = ::std::vector<double>(vf_u_functions.size());
-		for (int index_vf = 0; index_vf < vf_u_functions.size(); index_vf++)
-		{
-			write_to_log_2(fem, "virtual field " + ::std::to_string(index_vf) + "\n", outFile);
-
-			write_to_log_2(fem, "set virtual displacement.\n", outFile);
-
-			#pragma omp parallel for
+#pragma omp parallel for
 			for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 			{
 				int j = task->solution_elementsID[index_seId];
@@ -1192,18 +679,9 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				{
 					int node_id = element.m_node[k];
 					auto& node = mesh.Node(node_id);
-
-					auto vf_u = vf_u_functions[index_vf](currentCoordinate[node_id], node_id);
-					//for (int i = 0; i < 3; i++)
-					//{
-					//	vf_u[i] -= currentCoordinate[node_id][i];
-					//}
-
-					//node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-
-					node.m_r0 = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // true displacement as initial displacement.
+					node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] }; // true displacement as initial displacement.
 					node.m_d0 = { 0,0,0 };
-					node.m_rt = { vf_u[0],vf_u[1], vf_u[2] }; // move to virtual displacement
+					node.m_rt = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // move to virtual displacement
 					node.m_dt = { 0,0,0 };
 					node.m_rp = { 0,0,0 };
 					node.m_dp = { 0,0,0 };
@@ -1213,328 +691,515 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 				domain_init(mesh, static_cast<FESolidElement&>(element), domain);
 			}
-			
-			// internal virtual work
-			write_to_log_2(fem, "calculate internal virtual work.\n", outFile);
 
+			trueJArray[index_timestep] = ::std::vector<::std::vector<double>>(task->solution_elementsID.size());
+			truedeformationGradientArray[index_timestep] = ::std::vector<::std::vector<mat3d>>(task->solution_elementsID.size());
 
-
-			virtualstrainArrayV[index_timestep][index_vf] = ::std::vector<::std::vector<mat3ds>>(task->solution_elementsID.size());
-
-			#pragma omp parallel for
+#pragma omp parallel for
 			for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 			{
 				int j = task->solution_elementsID[index_seId];
+
 				FEElement& element = *(mesh.Element(j));
+				int nodes_number = element.Nodes();
+
+				// convert element to solid element
 				FESolidElement& solidElement = static_cast<FESolidElement&>(element);
-				virtualstrainArrayV[index_timestep][index_vf][index_seId] = ::std::vector<mat3ds>(solidElement.GaussPoints());
+
+				// get domain
+				FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
+
+				trueJArray[index_timestep][index_seId] = ::std::vector<double>(solidElement.GaussPoints());
+				truedeformationGradientArray[index_timestep][index_seId] = ::std::vector<mat3d>(solidElement.GaussPoints());
+				for (int n = 0; n < solidElement.GaussPoints(); n++)
+				{
+					// get element's stress
+					FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
+					FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
+
+					double Jc;
+					mat3d Ft, Fp;
+
+					// need recalculate
+					// calculate inverse jacobian
+					try
+					{
+						Jc = domain_defgrad_GJ(domain, solidElement, Ft, n);
+						//domain.defgradp(solidElement, Fp, n);
+					}
+					catch (NegativeJacobian& e)
+					{
+						double Jt = Ft.det();
+						if (::std::abs(Jt) < 1e-10)
+						{
+
+						}
+						else
+						{
+							throw e; // don't continue execution!!!!
+						}
+
+					}
+
+					if (j == 35072)
+					{
+						int awer23dsfcsafwerf = 0;
+					}
+
+					pt.m_F = Ft;
+					pt.m_J = Ft.det();
+
+					trueJArray[index_timestep][index_seId][n] = Jc;
+					truedeformationGradientArray[index_timestep][index_seId][n] = Ft;
+				}
+
+
 			}
-			const bool CONST_calvvw_ma = true;
-			if constexpr (CONST_calvvw_ma)
+		}
+
+
+#pragma endregion
+
+		auto& task_fixednode = task->configure.fixednode;
+
+		// py call SetVirtualDisplacementFunction
+		auto result = task->pyfile_module.attr("SetVirtualDisplacementFunction")(task->configure);
+		auto vfm_configure_from_py = result.cast<VFMTask_configure>();
+		// 从python文件中获取配置
+		task->configure = vfm_configure_from_py;
+		// 将虚位移计算函数赋值给vf_u_functions
+		vf_u_functions = task->configure.vf_u_functions;
+
+#pragma endregion
+
+
+#pragma region deformationGradient
+
+		// VirtualWork
+		externalVirtualWork = ::std::vector<::std::vector<double>>(timeArray.size());
+
+		volumeVirtualWork = ::std::vector<::std::vector<double>>(timeArray.size());
+
+		write_to_log_2(fem, "Attemp to calculate virtual work.\n", outFile);
+
+		virtualstrainArrayV = ::std::vector<::std::vector<::std::vector<::std::vector<mat3ds>>>>(timeArray.size()); // virtual strain : timestep, vf, element
+
+		// foreach timestep
+		for (int index_timestep = 0; index_timestep < timeArray.size(); index_timestep++)
+		{
+			write_to_log_2(fem, "timestep:" + ::std::to_string(index_timestep) + "\n", outFile);
+
+			::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
+#pragma omp parallel for
+			for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
 			{
-				::std::vector<::std::vector<double>> vvw_elements(task->solution_elementsID.size());
-				#pragma omp parallel for
+				for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
+				{
+					currentCoordinate[index_coordinate_i][index_coordinate_j] += displacementArray[index_timestep][index_coordinate_i][index_coordinate_j];
+				}
+			}
+
+			// true stress for parameters
+			write_to_log_2(fem, "get true stress.\n", outFile);
+
+			::std::vector<::std::vector<double>>& currentStress = stressArray[index_timestep];
+
+			::std::vector<double> ivw(vf_u_functions.size()); // internalVirtualWork
+			::std::vector<double> evw(vf_u_functions.size()); // externalVirtualWork
+
+
+
+			// virtual field
+			write_to_log_2(fem, "Cal virtual field.\n", outFile);
+
+			virtualstrainArrayV[index_timestep] = ::std::vector<::std::vector<::std::vector<mat3ds>>>(vf_u_functions.size());
+			externalVirtualWork[index_timestep] = ::std::vector<double>(vf_u_functions.size());
+			volumeVirtualWork[index_timestep] = ::std::vector<double>(vf_u_functions.size());
+			for (int index_vf = 0; index_vf < vf_u_functions.size(); index_vf++)
+			{
+				write_to_log_2(fem, "virtual field " + ::std::to_string(index_vf) + "\n", outFile);
+
+				write_to_log_2(fem, "set virtual displacement.\n", outFile);
+
+#pragma omp parallel for
 				for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 				{
 					int j = task->solution_elementsID[index_seId];
 
 					FEElement& element = *(mesh.Element(j));
-					int nodes_number = element.Nodes();
 
-					const int NELN = FEElement::MAX_NODES;
-					vec3d a0[NELN], u0[NELN];
-
-					::std::vector<::std::reference_wrapper<FENode>> nodes;
-					for (size_t i = 0; i < element.Nodes(); i++)
+					for (int k = 0; k < element.Nodes(); k++)
 					{
-						nodes.push_back(mesh.Node(element.m_node[i]));
-						auto av = accelerationArray[index_timestep][element.m_node[i]];
-						a0[i] = { av[0],av[1],av[2] };
-						u0[i] = nodes[i].get().m_rt;
+						int node_id = element.m_node[k];
+						auto& node = mesh.Node(node_id);
+
+						auto vf_u = vf_u_functions[index_vf](currentCoordinate[node_id], node_id);
+						//for (int i = 0; i < 3; i++)
+						//{
+						//	vf_u[i] -= currentCoordinate[node_id][i];
+						//}
+
+						//node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
+
+						node.m_r0 = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // true displacement as initial displacement.
+						node.m_d0 = { 0,0,0 };
+						node.m_rt = { vf_u[0],vf_u[1], vf_u[2] }; // move to virtual displacement
+						node.m_dt = { 0,0,0 };
+						node.m_rp = { 0,0,0 };
+						node.m_dp = { 0,0,0 };
 					}
 
-					vvw_elements[index_seId] = ::std::vector<double>(element.GaussPoints());
-
-					// find material by element
-					FEMaterial* pmat = fem->GetMaterial(element.GetMatID());
-
-					// convert element to solid element
-					FESolidElement& solidElement = static_cast<FESolidElement&>(element);
-
-					// get domain
 					FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
 
-
-					for (int n = 0; n < solidElement.GaussPoints(); n++)
-					{
-						// get element's stress
-						FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
-						FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
-
-						double Jc;
-						mat3d Ft, Fp;
-
-						// need recalculate
-						// calculate inverse jacobian
-						Jc = trueJArray[index_timestep][index_seId][n];
-
-
-						double J = pt.m_J;
-						double J0 = mp.m_J0;
-						pt.m_F = Ft;
-						// pt.m_J = Jt;
-
-						// strainCompute infinitesimal strain
-						mat3ds infstrain = pt.m_F.sym();
-						//mat3ds strain = pt.Strain(); // virtual strain
-
-						mat3ds& s = infstrain;
-
-						virtualstrainArrayV[index_timestep][index_vf][index_seId][n] = s;
-
-						double density = dynamic_cast<FESolidMaterial*>(pmat)->Density(mp);
-						density = 1;
-						// acceleration
-						vec3d a = solidElement.Evaluate(a0, n);
-						vec3d u = solidElement.Evaluate(u0, n);
-
-						double vvw = density * (a * u) * Jc;
-
-						vvw_elements[index_seId][n] = vvw;
-					}
-
-
+					domain_init(mesh, static_cast<FESolidElement&>(element), domain);
 				}
 
-				// sum vvw_elements
-				for (int i = 0; i < vvw_elements.size(); i++)
+				// internal virtual work
+				write_to_log_2(fem, "calculate internal virtual work.\n", outFile);
+
+
+
+				virtualstrainArrayV[index_timestep][index_vf] = ::std::vector<::std::vector<mat3ds>>(task->solution_elementsID.size());
+
+#pragma omp parallel for
+				for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 				{
-					for (int j = 0; j < vvw_elements[i].size(); j++)
-					{
-						volumeVirtualWork[index_timestep][index_vf] += vvw_elements[i][j];
-					}
+					int j = task->solution_elementsID[index_seId];
+					FEElement& element = *(mesh.Element(j));
+					FESolidElement& solidElement = static_cast<FESolidElement&>(element);
+					virtualstrainArrayV[index_timestep][index_vf][index_seId] = ::std::vector<mat3ds>(solidElement.GaussPoints());
 				}
-			}
-			// external virtual work
-			write_to_log_2(fem, "calculate external virtual work.\n", outFile);
-
-			externalVirtualWork[index_timestep][index_vf] = 0;
-			// surface load
-			write_to_log_2(fem, "surface load and evw:\n", outFile);			
-
-			for (int j = 0; j < task->configure.pressure_load.size(); j++)
-			{
-				for (int i = 0; i < fem->ModelLoads(); i++)
+				const bool CONST_calvvw_ma = true;
+				if constexpr (CONST_calvvw_ma)
 				{
-					FEModelLoad& load = *(fem->ModelLoad(i));
-					::std::string loadclassname = load.GetFactoryClass()->GetClassName();
-					::std::string loadname = load.GetName();
-					
-					if (::std::get<0>(task->configure.pressure_load[j]) == loadclassname && ::std::get<1>(task->configure.pressure_load[j]) == loadname)
+					::std::vector<::std::vector<double>> vvw_elements(task->solution_elementsID.size());
+#pragma omp parallel for
+					for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 					{
-						if (loadclassname == "FEPressureLoad")
+						int j = task->solution_elementsID[index_seId];
+
+						FEElement& element = *(mesh.Element(j));
+						int nodes_number = element.Nodes();
+
+						const int NELN = FEElement::MAX_NODES;
+						vec3d a0[NELN], u0[NELN];
+
+						::std::vector<::std::reference_wrapper<FENode>> nodes;
+						for (size_t i = 0; i < element.Nodes(); i++)
 						{
-							FEPressureLoad& pressureLoad = static_cast<FEPressureLoad&>(load);
+							nodes.push_back(mesh.Node(element.m_node[i]));
+							auto av = accelerationArray[index_timestep][element.m_node[i]];
+							a0[i] = { av[0],av[1],av[2] };
+							u0[i] = nodes[i].get().m_rt;
+						}
 
-							auto& surface = pressureLoad.GetSurface();
+						vvw_elements[index_seId] = ::std::vector<double>(element.GaussPoints());
 
-							::std::vector<::std::vector<double>> evw_surface(surface.Elements());
-							::std::vector<bool> evw_surface_flag(surface.Elements(), false);
+						// find material by element
+						FEMaterial* pmat = fem->GetMaterial(element.GetMatID());
 
-							#pragma omp parallel for
-							for (int index_surface_element = 0; index_surface_element < surface.Elements(); index_surface_element++)
+						// convert element to solid element
+						FESolidElement& solidElement = static_cast<FESolidElement&>(element);
+
+						// get domain
+						FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
+
+
+						for (int n = 0; n < solidElement.GaussPoints(); n++)
+						{
+							// get element's stress
+							FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
+							FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
+
+							double Jc;
+							mat3d Ft, Fp;
+
+							// need recalculate
+							// calculate inverse jacobian
+							Jc = trueJArray[index_timestep][index_seId][n];
+
+							try
 							{
-								auto& element = surface.Element(index_surface_element);
-
-								auto* true_element = element.m_elem[0];
-
-								int elementId = true_element->GetID()-1;
-								::std::vector<::std::reference_wrapper<FENode>> nodes;
-								for (size_t i = 0; i < element.Nodes(); i++)
+								Jc = domain_defgrad_GJ(domain, solidElement, Ft, n);
+								//domain.defgradp(solidElement, Fp, n);
+							}
+							catch (NegativeJacobian& e)
+							{
+								double Jt = Ft.det();
+								if (::std::abs(Jt) < 1e-10)
 								{
-									nodes.push_back(mesh.Node(element.m_node[i]));
-								}
 
-								evw_surface[index_surface_element] = ::std::vector<double>(element.GaussPoints(), 0);
-
-								// judge surfaceelement's element is in solution_elementsID
-								int index_seId = -1;
-								if (::std::find(task->solution_elementsID.begin(), task->solution_elementsID.end(), elementId) != task->solution_elementsID.end())
-								{
-									vec3d re[FEElement::MAX_NODES];
-									surface.GetReferenceNodalCoordinates(element, re);
-									vec3d rv[FEElement::MAX_NODES];
-									surface.NodalCoordinates(element, rv);
-
-
-									double Hr[FEElement::MAX_NODES], Hs[FEElement::MAX_NODES];
-									element.shape_deriv(Hr, Hs, 0, 0);
-									vec3d xr(0, 0, 0), xs(0, 0, 0);
-									for (int i = 0; i < element.Nodes(); ++i)
-									{
-										xr += re[i] * Hr[i];
-										xs += re[i] * Hs[i];
-									}
-									vec3d np = xr ^ xs;
-									np.unit();
-
-									for (int n = 0; n < element.GaussPoints(); n++)
-									{
-										FESurfaceMaterialPoint& pt = *(dynamic_cast<FESurfaceMaterialPoint*>(element.GetMaterialPoint(n)));
-
-
-										// initialize some material point data
-										double* H = element.H(n);
-										vec3d rn(0, 0, 0);
-										for (int j = 0; j < element.Nodes(); ++j)
-										{
-											rn += rv[j] * H[j];
-										}
-										pt.m_rt = rn; // initialized to zero
-										//pt.m_rt = rv;
-
-										// calculate initial surface tangents
-										double* Gr = element.Gr(n);
-										double* Gs = element.Gs(n);
-
-										vec3d dxr(0, 0, 0), dxs(0, 0, 0);
-										for (int i = 0; i < element.Nodes(); ++i)
-										{
-											dxr += re[i] * Gr[i];
-											dxs += re[i] * Gs[i];
-										}
-										pt.dxr = dxr;
-										pt.dxs = dxs;
-
-										// initialize the other material point data
-										pt.Init();
-
-
-										vec3d pos = pt.m_rt;
-
-
-										double P = (currentStress[elementId][0] + currentStress[elementId][1] + currentStress[elementId][2]) / 3;
-										double iP = (initialStress[elementId][0] + initialStress[elementId][1] + initialStress[elementId][2]) / 3;
-
-										P -= iP;
-
-
-										double J = (pt.dxr ^ pt.dxs).norm(); // real J ?
-										//pt.m_Jt = J;
-
-										//vec3d N = (pt.dxr ^ pt.dxs); N.unit();
-
-										//vec3d Nv(0,0,0);
-										//if (element.Nodes() == 4)
-										//{
-										//	vec3d v1 = re[1] - re[0];
-										//	vec3d v2 = re[3] - re[0];
-
-										//	vec3d Nv = (v1 ^ v2) * (-1.0 / ((v1 ^ v2).norm()));
-
-										//	if (Nv == N)
-										//	{
-										//		int xx = 0;
-										//	}
-										//}
-
-										vec3d t = np * P;
-
-										int temp_debug_omp_index_vf = index_vf;
-										int temp_debug_omp_index_timestep = index_timestep;
-
-
-										double temp_debug_omp_evw_surface = t * pos * J;
-
-										// correct with stress
-										double weight_correct = 1;// 1.0 / (10000 * ::std::abs(P) + 0.01);
-
-										evw_surface[index_surface_element][n] = weight_correct * temp_debug_omp_evw_surface;
-
-										if (elementId == 35072 && n == 0)
-										{
-											int awer23dsfcsafwerf = 0;
-										}
-
-										double ddd = 222.1;
-
-										if (evw_surface[index_surface_element][n] > 1e-5)
-										{
-											auto temp_t(t);
-											auto temp(P);
-											auto temp_pos(pos);
-											auto temp_J(J);
-										}
-
-										if (pos.x > 100)
-										{
-											auto temp_t(t);
-											auto temp(P);
-											auto temp_pos(pos);
-											auto temp_J(J);
-										}
-									}
 								}
 								else
 								{
-									evw_surface_flag[index_surface_element] = true;
+									throw e; // don't continue execution!!!!
 								}
 
 							}
 
-							// delete evw_surface_flag == true
+							if (j == 35072)
 							{
-								::std::vector<::std::vector<double>> evw_surface_temp;
-								for (int i = 0; i < evw_surface.size(); i++)
+								int awer23dsfcsafwerf = 0;
+							}
+
+
+
+							double J = pt.m_J;
+							double J0 = mp.m_J0;
+							pt.m_F = Ft;
+							// pt.m_J = Jt;
+
+							// strainCompute infinitesimal strain
+							mat3ds infstrain = pt.m_F.sym();
+							//mat3ds strain = pt.Strain(); // virtual strain
+
+							mat3ds& s = infstrain;
+
+							virtualstrainArrayV[index_timestep][index_vf][index_seId][n] = s;
+
+							double density = dynamic_cast<FESolidMaterial*>(pmat)->Density(mp);
+							density = 1;
+							// acceleration
+							vec3d a = solidElement.Evaluate(a0, n);
+							vec3d u = solidElement.Evaluate(u0, n);
+
+							double vvw = density * (a * u) * Jc;
+
+							vvw_elements[index_seId][n] = vvw;
+						}
+
+
+					}
+
+					// sum vvw_elements
+					for (int i = 0; i < vvw_elements.size(); i++)
+					{
+						for (int j = 0; j < vvw_elements[i].size(); j++)
+						{
+							volumeVirtualWork[index_timestep][index_vf] += vvw_elements[i][j];
+						}
+					}
+				}
+				// external virtual work
+				write_to_log_2(fem, "calculate external virtual work.\n", outFile);
+
+				externalVirtualWork[index_timestep][index_vf] = 0;
+				// surface load
+				write_to_log_2(fem, "surface load and evw:\n", outFile);
+
+				for (int j = 0; j < task->configure.pressure_load.size(); j++)
+				{
+					for (int i = 0; i < fem->ModelLoads(); i++)
+					{
+						FEModelLoad& load = *(fem->ModelLoad(i));
+						::std::string loadclassname = load.GetFactoryClass()->GetClassName();
+						::std::string loadname = load.GetName();
+
+						if (::std::get<0>(task->configure.pressure_load[j]) == loadclassname && ::std::get<1>(task->configure.pressure_load[j]) == loadname)
+						{
+							if (loadclassname == "FEPressureLoad")
+							{
+								FEPressureLoad& pressureLoad = static_cast<FEPressureLoad&>(load);
+
+								auto& surface = pressureLoad.GetSurface();
+
+								::std::vector<::std::vector<double>> evw_surface(surface.Elements());
+								::std::vector<bool> evw_surface_flag(surface.Elements(), false);
+
+#pragma omp parallel for
+								for (int index_surface_element = 0; index_surface_element < surface.Elements(); index_surface_element++)
 								{
-									if (evw_surface_flag[i] == false)
+									auto& element = surface.Element(index_surface_element);
+
+									auto* true_element = element.m_elem[0];
+
+									int elementId = true_element->GetID() - 1;
+									::std::vector<::std::reference_wrapper<FENode>> nodes;
+									for (size_t i = 0; i < element.Nodes(); i++)
 									{
-										evw_surface_temp.push_back(evw_surface[i]);
+										nodes.push_back(mesh.Node(element.m_node[i]));
 									}
-								}
-								evw_surface = evw_surface_temp;
-							}
 
-							for (int i = 0; i < evw_surface.size(); i++)
-							{
-								for (int j = 0; j < evw_surface[i].size(); j++)
+									evw_surface[index_surface_element] = ::std::vector<double>(element.GaussPoints(), 0);
+
+									// judge surfaceelement's element is in solution_elementsID
+									int index_seId = -1;
+									if (::std::find(task->solution_elementsID.begin(), task->solution_elementsID.end(), elementId) != task->solution_elementsID.end())
+									{
+										vec3d re[FEElement::MAX_NODES];
+										surface.GetReferenceNodalCoordinates(element, re);
+										vec3d rv[FEElement::MAX_NODES];
+										surface.NodalCoordinates(element, rv);
+
+
+										double Hr[FEElement::MAX_NODES], Hs[FEElement::MAX_NODES];
+										element.shape_deriv(Hr, Hs, 0, 0);
+										vec3d xr(0, 0, 0), xs(0, 0, 0);
+										for (int i = 0; i < element.Nodes(); ++i)
+										{
+											xr += re[i] * Hr[i];
+											xs += re[i] * Hs[i];
+										}
+										vec3d np = xr ^ xs;
+										np.unit();
+
+										for (int n = 0; n < element.GaussPoints(); n++)
+										{
+											FESurfaceMaterialPoint& pt = *(dynamic_cast<FESurfaceMaterialPoint*>(element.GetMaterialPoint(n)));
+
+
+											// initialize some material point data
+											double* H = element.H(n);
+											vec3d rn(0, 0, 0);
+											for (int j = 0; j < element.Nodes(); ++j)
+											{
+												rn += rv[j] * H[j];
+											}
+											pt.m_rt = rn; // initialized to zero
+											//pt.m_rt = rv;
+
+											// calculate initial surface tangents
+											double* Gr = element.Gr(n);
+											double* Gs = element.Gs(n);
+
+											vec3d dxr(0, 0, 0), dxs(0, 0, 0);
+											for (int i = 0; i < element.Nodes(); ++i)
+											{
+												dxr += re[i] * Gr[i];
+												dxs += re[i] * Gs[i];
+											}
+											pt.dxr = dxr;
+											pt.dxs = dxs;
+
+											// initialize the other material point data
+											pt.Init();
+
+
+											vec3d pos = pt.m_rt;
+
+
+											double P = (currentStress[elementId][0] + currentStress[elementId][1] + currentStress[elementId][2]) / 3;
+											double iP = (initialStress[elementId][0] + initialStress[elementId][1] + initialStress[elementId][2]) / 3;
+
+											P -= iP;
+
+
+											double J = (pt.dxr ^ pt.dxs).norm(); // real J ?
+											//pt.m_Jt = J;
+
+											//vec3d N = (pt.dxr ^ pt.dxs); N.unit();
+
+											//vec3d Nv(0,0,0);
+											//if (element.Nodes() == 4)
+											//{
+											//	vec3d v1 = re[1] - re[0];
+											//	vec3d v2 = re[3] - re[0];
+
+											//	vec3d Nv = (v1 ^ v2) * (-1.0 / ((v1 ^ v2).norm()));
+
+											//	if (Nv == N)
+											//	{
+											//		int xx = 0;
+											//	}
+											//}
+
+											vec3d t = np * P;
+
+											int temp_debug_omp_index_vf = index_vf;
+											int temp_debug_omp_index_timestep = index_timestep;
+
+
+											double temp_debug_omp_evw_surface = t * pos * J;
+
+											// correct with stress
+											double weight_correct = 1;// 1.0 / (10000 * ::std::abs(P) + 0.01);
+
+											evw_surface[index_surface_element][n] = weight_correct * temp_debug_omp_evw_surface;
+
+											if (elementId == 35072 && n == 0)
+											{
+												int awer23dsfcsafwerf = 0;
+											}
+
+											double ddd = 222.1;
+
+											if (evw_surface[index_surface_element][n] > 1e-5)
+											{
+												auto temp_t(t);
+												auto temp(P);
+												auto temp_pos(pos);
+												auto temp_J(J);
+											}
+
+											if (pos.x > 100)
+											{
+												auto temp_t(t);
+												auto temp(P);
+												auto temp_pos(pos);
+												auto temp_J(J);
+											}
+										}
+									}
+									else
+									{
+										evw_surface_flag[index_surface_element] = true;
+									}
+
+								}
+
+								// delete evw_surface_flag == true
 								{
-									externalVirtualWork[index_timestep][index_vf] += evw_surface[i][j];
+									::std::vector<::std::vector<double>> evw_surface_temp;
+									for (int i = 0; i < evw_surface.size(); i++)
+									{
+										if (evw_surface_flag[i] == false)
+										{
+											evw_surface_temp.push_back(evw_surface[i]);
+										}
+									}
+									evw_surface = evw_surface_temp;
 								}
-							}
 
-							// write all evw_surface to file
-							{
-								::std::ofstream evw_surface_file("./temp/debug/evw_surface_" + ::std::to_string(index_timestep) + "_" + ::std::to_string(index_vf) + ".txt");
 								for (int i = 0; i < evw_surface.size(); i++)
 								{
 									for (int j = 0; j < evw_surface[i].size(); j++)
 									{
-										evw_surface_file << evw_surface[i][j] << "\n";
+										externalVirtualWork[index_timestep][index_vf] += evw_surface[i][j];
 									}
 								}
-								evw_surface_file.close();
+
+								// write all evw_surface to file
+								{
+									::std::ofstream evw_surface_file("./temp/debug/evw_surface_" + ::std::to_string(index_timestep) + "_" + ::std::to_string(index_vf) + ".txt");
+									for (int i = 0; i < evw_surface.size(); i++)
+									{
+										for (int j = 0; j < evw_surface[i].size(); j++)
+										{
+											evw_surface_file << evw_surface[i][j] << "\n";
+										}
+									}
+									evw_surface_file.close();
+								}
+
+								auto evw = externalVirtualWork[index_timestep][index_vf];
 							}
 
-							auto evw=externalVirtualWork[index_timestep][index_vf];
 						}
-
 					}
+
 				}
 
+
+
 			}
-
-			
-
 		}
-	}
 
 
 
-	#pragma endregion
+#pragma endregion
 
 
-	double forceMPa = 0.0004; // 3mmHg
+		double forceMPa = 0.0004; // 3mmHg
 
 #pragma endregion
 
@@ -1542,7 +1207,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		DumpFile dumpfile(*fem);
 		dumpfile.Create((task->dumpfile + ".fundump").c_str());
 
-		dumpfile& timeArray& (task->solution_elementsID) & solution_elementsDomainID& trueJArray& truedeformationGradientArray& virtualstrainArrayV& externalVirtualWork& volumeVirtualWork;
+		dumpfile& timeArray& (task->solution_elementsID)& solution_elementsDomainID& trueJArray& truedeformationGradientArray& virtualstrainArrayV& externalVirtualWork& volumeVirtualWork;
 
 		dumpfile.Close();
 
@@ -1602,7 +1267,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			for (auto& index : task->readfromsaveOptimfunc_index)
 			{
 				::std::string fundumpfile = task->szfile + "_BMP" + ::std::to_string(index) + "_dump.febdump" + ".fundump";
-				write_to_log_2(fem, ("Reading... "+fundumpfile + "\n").c_str(), outFile);
+				write_to_log_2(fem, ("Reading... " + fundumpfile + "\n").c_str(), outFile);
 
 
 				DumpFile dumpfile(*fem);
@@ -1614,7 +1279,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 				auto solution_elementsID(task->solution_elementsID);
 
-				funs.push_back([&fem,timeArray,&outFile, solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork](const ::std::vector<double>& ps) {
+				funs.push_back([&fem, timeArray, &outFile, solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork](const ::std::vector<double>& ps) {
 					double p_E = ps[0];
 					double p_g = ps[1];
 					double p_t = ps[2];
@@ -1624,7 +1289,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					return value;
 					});
 			}
-			function = [&fem,&outFile,funs](const ::std::vector<double>& ps) {
+			function = [&fem, &outFile, funs](const ::std::vector<double>& ps) {
 				double p_E = ps[0];
 				double p_g = ps[1];
 				double p_t = ps[2];
@@ -1639,18 +1304,18 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				ss << "E: " << ::std::setprecision(12) << p_E << ", g: " << ::std::setprecision(12) << p_g << ", t: " << ::std::setprecision(12) << p_t << "\nloss: " << ::std::setprecision(12) << value << "\n";
 				write_to_log_2(fem, ss.str(), outFile);
 				return value;
-			};
+				};
 		}
 	}
 
 #pragma region Optim
 
-	#pragma region Opt10x10x10
+#pragma region Opt10x10x10
 
 	const bool CONST_Opt10x10x10 = true;
 	if constexpr (CONST_Opt10x10x10 == true)
 	{
-		auto dop = [&](const ::std::vector<::std::vector<double>>& psss, ::std::function<double(const ::std::vector<double>&)> fun, bool ifoutlog = false, bool ifoutTacplot = false,::std::vector<int> contour_num={9,9,1}, ::std::string outTacplot_filepath = "./temp/debug/Tacplot.dat") {
+		auto dop = [&](const ::std::vector<::std::vector<double>>& psss, ::std::function<double(const ::std::vector<double>&)> fun, bool ifoutlog = false, bool ifoutTacplot = false, ::std::vector<int> contour_num = { 9,9,1 }, ::std::string outTacplot_filepath = "./temp/debug/Tacplot.dat") {
 			double min_value = std::numeric_limits<double>::infinity();
 			::std::vector<double> min_ps;
 
@@ -1678,7 +1343,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				// write E, g, t, loss to Tacplot
 				if (ifoutTacplot)
 				{
-					TacplotFile << ::std::setprecision(12)  << pss[0] << " " << pss[1] << " " << pss[2] << " " << value << "\n";
+					TacplotFile << ::std::setprecision(12) << pss[0] << " " << pss[1] << " " << pss[2] << " " << value << "\n";
 				}
 
 				map.insert({ value,pss });
@@ -1764,7 +1429,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			}
 		}
 
-		write_to_log_2(fem,"min_E: "+::std::to_string(min_E)+" min_g: "+::std::to_string(min_g)+" min_t: "+::std::to_string(min_t)+"\n", outFile);
+		write_to_log_2(fem, "min_E: " + ::std::to_string(min_E) + " min_g: " + ::std::to_string(min_g) + " min_t: " + ::std::to_string(min_t) + "\n", outFile);
 
 		//auto grid1 = createGrid({ ::std::max(min_E - 0.1,0.1),::std::max(min_g - 1,1.0),::std::max(min_t - 1,1.0) }, { ::std::min(min_E + 0.1,0.9),::std::min(min_g + 1,9.0),::std::min(min_t + 1,9.0) }, { 0.02,0.2,0.2 });
 		auto grid1 = createGrid({ ::std::max(min_E - 0.1,0.1),::std::max(min_g - 1,1.0),1.0 }, { ::std::min(min_E + 0.1,0.9),::std::min(min_g + 1,9.0),1.0 }, { 0.02,0.2,0 });
@@ -1799,7 +1464,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		write_to_log_2(fem, "min_E1: " + ::std::to_string(min_E1) + " min_g1: " + ::std::to_string(min_g1) + " min_t1: " + ::std::to_string(min_t1) + "\n", outFile);
 
 		//auto grid2 = createGrid({ ::std::max(min_E1 - 0.02,0.1),::std::max(min_g1 - 0.2,1.0),::std::max(min_t1 - 0.2,1.0) }, { ::std::min(min_E1 + 0.02,0.9),::std::min(min_g1 + 0.2,9.0),::std::min(min_t1 + 0.2,9.0) }, { 0.004,0.04,0.04 });
-		auto grid2 = createGrid({ ::std::max(min_E1 - 0.02,0.1),::std::max(min_g1 - 0.2,1.0),1.0 }, { ::std::min(min_E1 + 0.02,0.9),::std::min(min_g1 + 0.2,9.0),1.0}, { 0.004,0.04,0 });
+		auto grid2 = createGrid({ ::std::max(min_E1 - 0.02,0.1),::std::max(min_g1 - 0.2,1.0),1.0 }, { ::std::min(min_E1 + 0.02,0.9),::std::min(min_g1 + 0.2,9.0),1.0 }, { 0.004,0.04,0 });
 
 		auto [min_value2, min_ps2, dop_map2] = dop(grid2, function, true);
 		double min_E2 = min_ps2[0];
@@ -1831,9 +1496,9 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		write_to_log_2(fem, "min_E2: " + ::std::to_string(min_E2) + " min_g2: " + ::std::to_string(min_g2) + " min_t2: " + ::std::to_string(min_t2) + "\n", outFile);
 
 	}
-	#pragma endregion
+#pragma endregion
 
-	#pragma region NLpot_0
+#pragma region NLpot_0
 	const bool CONST_NLpot_0 = false;
 	if constexpr (CONST_NLpot_0 == true)
 	{
@@ -1884,7 +1549,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 #pragma endregion
 
-	#pragma region NLpot_more
+#pragma region NLpot_more
 	const bool CONST_NLpot_more = false;
 	if constexpr (CONST_NLpot_more == true)
 	{
@@ -1942,12 +1607,12 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 
 		}
-		
+
 		int index_m = 0;
 		for (auto f_xs : min_f_xs)
 		{
 			::std::stringstream ss;
-			ss << ::std::setprecision(12) << index_m <<" _ Optimization succeeded, found minimum at f("
+			ss << ::std::setprecision(12) << index_m << " _ Optimization succeeded, found minimum at f("
 				<< f_xs[1] << "," << f_xs[2] << "," << f_xs[3] << ") = "
 				<< f_xs[0] << std::endl;
 			write_to_log_2(fem, ss.str(), outFile);
@@ -1955,7 +1620,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		}
 	}
 
-	#pragma endregion
+#pragma endregion
 
 
 
@@ -1979,10 +1644,10 @@ int push_back_vector__int(std::uintptr_t p_v, int a1)
 }
 int push_back_vector__tuple__string_string(std::uintptr_t p_v, char* s1, char* s2)
 {
-	::std::string ss1(s1); 
-	::std::string ss2(s2); 
+	::std::string ss1(s1);
+	::std::string ss2(s2);
 
-	
+
 	((::std::vector<::std::tuple<::std::string, ::std::string>>*)p_v)->push_back(::std::make_tuple(ss1, ss2));
 	return 0;
 }
@@ -2020,7 +1685,7 @@ std::vector<std::vector<double>> createGrid(const std::vector<double>& xl, const
 	}
 	else
 	{
-		
+
 		for (double x = xl[now_index]; x <= xu[now_index]; x += xd[now_index])
 		{
 			(*now_xs)[now_index] = x;
@@ -2036,11 +1701,11 @@ std::vector<std::vector<double>> createGrid(const std::vector<double>& xl, const
 		{
 			delete now_xs;
 		}
-		
+
 		return grid;
 	}
 
-	
+
 
 
 
@@ -2057,7 +1722,7 @@ std::vector<std::vector<double>> createGrid(const std::vector<double>& xl, const
 	}
 
 	// 递归处理下一个维度的网格
-	std::vector<std::vector<double>> subGrid = createGrid(std::vector<double>(xl.begin(),xl.end()-2), std::vector<double>(xu.begin(), xu.end() - 2), std::vector<double>(xd.begin(), xd.end() - 2));
+	std::vector<std::vector<double>> subGrid = createGrid(std::vector<double>(xl.begin(), xl.end() - 2), std::vector<double>(xu.begin(), xu.end() - 2), std::vector<double>(xd.begin(), xd.end() - 2));
 	for (const auto& row : subGrid) {
 		grid.push_back(row);
 	}
@@ -2079,81 +1744,67 @@ bool VFMTask::Init(const char* szfile)
 	// Read file
 	this->szfile = szfile;
 
-	::std::ifstream inFile;
-	inFile.open(szfile, ::std::ios::in);
-	if (!inFile.is_open())
-	{
-		feLogError("Open file \"");
-		feLogError(szfile);
-		feLogError("\" failed.\n");
-		return false;
-	}
-	feLog("successfully open file \"");
-	feLog(szfile);
-	feLog("\".\n");
-
 	// Parse
 		// could import a script language>?
 		// normal text file> 
-	::std::string unilang_filename = (::std::string(szfile) + ".unilang");
 
+		// python file>
+	::std::string sifilename = szfile;
+	::std::string suffix = sifilename.substr(sifilename.find_last_of('.') + 1);
 
 	// szfile remove the suffix
-	::std::string szfile_no_suffix = szfile;
-	szfile_no_suffix = szfile_no_suffix.substr(0, szfile_no_suffix.find_last_of('.'));
+	::std::string szfile_no_suffix = sifilename.substr(0, sifilename.find_last_of('.'));
 
-	::std::string python_filename = (::std::string(szfile_no_suffix) + ".py");
 	::std::string python_module_name = szfile_no_suffix;
 
-	// Start python interpreter
+
+#ifdef __linux__
+	// if debug
+//#ifdef __DEBUG__
+
+//#else
+//	auto pylibdl = dlopen("/home/wangxiaofei/anaconda3/envs/base-pydebug/lib/libpython3.12.so", RTLD_LAZY | RTLD_GLOBAL);
+//#endif
+#endif
+
+	// Start python interpreter in Class Constructor (this->guard)
 	namespace py = pybind11;
 	using namespace py::literals;
-	//-----------------------------------------------------------------
-		//启动Python解释器
-
-	//-------------------------------------------------------------------
 
 	//调用Python函数
 	py::print("Hello,World");
 
-	//-------------------------------------------------------------------
-	//执行Python脚本
-	py::exec(R"(
-        kwargs=dict(name="world",number=42)
-        message="Hello,{name}! The answer is {number}".format(**kwargs)
-        print(message)
-    )");
-
-	//--------------------------------------------------------------------
-
-	auto kwargs = py::dict("name"_a = "world", "number"_a = 42);
-	auto message = "Hello,{name}! The answer is {number}"_s.format(**kwargs);
-	py::print(message);
-
-	//-------------------------------------------------------------------
-
-	//初始化脚本空间状态    
-	auto locals = py::dict("name"_a = "world", "number"_a = 42);
-	//运行脚本
-	py::exec(R"(
-        message="Hello,{name}! The answer is {number}".format(**locals())
-    )", py::globals(), locals);
-
-	std::cout << locals["message"].cast<std::string>() << std::endl;
-
 	//---------------------------------------------------------------------
+	py::print("Python path:");
 	//加载Python模块，获取模块变量(py::object)
 	auto sys = py::module_::import("sys");
 	py::print(sys.attr("path"));
 
+#ifdef __linux__
+	auto paths = sys.attr("path").cast<::std::vector<::std::string>>();
+	// 根据python路径，找到libpython的路径
+	auto libpython2 = paths[2];
+	auto pythonname= libpython2.substr(libpython2.find_last_of('/') + 1);
+
+#ifdef DEBUG
+	auto tagdebug = "d";
+#else
+	auto tagdebug = "";
+#endif
+
+	auto libpython_path = libpython2.substr(0, libpython2.find_last_of('/')) + "/lib"+ pythonname+ tagdebug +".so";
+
+	auto pylibdl = dlopen(libpython_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+#endif
 	//---------------------------------------------------------------------
 
 	//加载pybind11嵌入模块，运行命令
-	std::cout<< "Load python file: " << python_filename << std::endl;
+	std::cout << "Load python file: " << sifilename << std::endl;
 	// 加载外部文件
-	auto pyfile_module = py::module_::import(python_module_name.c_str());
+	this->pyfile_module = py::module_::import(python_module_name.c_str());
+
 	// InitVFMTask
-	auto result = pyfile_module.attr("InitVFMTask")();
+	auto result = pyfile_module.attr("InitVFMTask")(this->configure);
 	auto vfm_configure_from_py = result.cast<VFMTask_configure>();
 	// 从python文件中获取配置
 	this->configure = vfm_configure_from_py;
@@ -2162,7 +1813,7 @@ bool VFMTask::Init(const char* szfile)
 	int numCycle = 2;
 
 	// create a save file
-	this->outSavefile = string(szfile) + "_BMP"+::std::to_string(static_cast<int>(this->configure.bpm)) + "_save.txt";
+	this->outSavefile = string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) + "_save.txt";
 	if (this->configure.isRead_FEMresult_fromsavefile == false)
 	{
 		// create a save file
@@ -2179,7 +1830,7 @@ bool VFMTask::Init(const char* szfile)
 	}
 
 	// create a log file
-	this->outlogfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) +"_log.txt";
+	this->outlogfile = string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) + "_log.txt";
 	::std::ofstream outFile;
 	outFile.open(this->outlogfile, ::std::ios::out);
 	if (!outFile.is_open())
@@ -2191,7 +1842,7 @@ bool VFMTask::Init(const char* szfile)
 	}
 
 	// set dumpfile name
-	this->dumpfile=string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) +"_dump.febdump";
+	this->dumpfile = string(szfile) + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) + "_dump.febdump";
 
 	// write log
 	outFile << endl;
@@ -2284,6 +1935,17 @@ bool VFMTask::Run()
 	}
 
 	read_solved_information(&fem, CB_SOLVED, (void*)this); // no need callback
-	
+
 	return femsolveresult;
 }
+
+//void VFMTask_configure::add_vf_u_function(pybind11::object callback)
+//{
+//	// callback is a python function
+//	std::function<::std::vector<double>(const ::std::vector<double>&, int)> func = [callback](const ::std::vector<double>& x, int index) {
+//		//pybind11::gil_scoped_acquire acquire;
+//		pybind11::object result = callback(x, index);
+//		return result.cast<::std::vector<double>>();
+//		};
+//	this->vf_u_functions.push_back(func);
+//}

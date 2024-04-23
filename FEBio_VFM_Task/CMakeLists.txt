@@ -25,8 +25,6 @@ else()
 	)
 endif()
 
-
-
 include_directories ("${FEBioSDKPath}/include")
 if (WIN32)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -37,6 +35,13 @@ if (WIN32)
 else()
 	# linux上只有release版本
 	link_directories ("${FEBioSDKPath}/../lib")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	message("Debug Mode")
+	add_definitions(-DDEBUG)
+else()
+	message("Release Mode")
 endif()
 
 # 为此项目添加OpenMP支持
@@ -68,7 +73,6 @@ target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
 # 为此项目添加pybind11支持
 
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
 find_package(pybind11 CONFIG REQUIRED)
 
 if (Python_FOUND)
@@ -83,7 +87,9 @@ else()
 	message("Python Not Found")
 endif()
 
+target_link_libraries (FEBio_VFM_Task PUBLIC Python::Python)
 target_link_libraries (FEBio_VFM_Task PRIVATE pybind11::pybind11 pybind11::embed)
+
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET FEBio_VFM_Task PROPERTY CXX_STANDARD 20)

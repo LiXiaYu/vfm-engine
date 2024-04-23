@@ -2,7 +2,10 @@
 
 #include "common_FEBio.h"
 
+#include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
+#include <pybind11/stl.h>
+#include <pybind11/functional.h>
 
 class VFMTask_configure
 {
@@ -16,6 +19,9 @@ public:
     std::vector<std::tuple<std::string, std::string>> solution;
     std::vector<std::tuple<std::string, std::string>> pressure_load;
     std::vector<std::tuple<std::string, std::string>> fixed;
+    ::std::vector<int> fixednode;
+
+    ::std::vector<::std::function<::std::vector<double>(const ::std::vector<double>&, int)>> vf_u_functions;
 };
 
 class VFMTask : public FECoreTask
@@ -42,8 +48,6 @@ public:
     ::std::vector<double> timestep;
     ::std::vector<::std::vector<::std::vector<double>>> timedisplacement;
     ::std::vector<::std::vector<::std::vector<double>>> timestress;
-
-    ::std::vector<int> fixednode;
     
     ::std::vector<::std::vector<int>> forceFacet;
 
@@ -51,8 +55,10 @@ public:
 
     ::std::vector<int> solution_elementsID;
 
+// python interperter
 public:
     pybind11::scoped_interpreter guard{};
+    pybind11::module_ pyfile_module;
 // input parameters
 public:
     VFMTask_configure configure;
