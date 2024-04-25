@@ -1,6 +1,7 @@
 #include "VFMTask.h"
 
 #include <vector>
+#include <set>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -617,29 +618,45 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		
 #pragma endregion
 
-#pragma region initialDeformationGradient
-		// set initial displacement to nodes
-		write_to_log_2(fem, "Set initial displacement to nodes.\n", outFile);
 
-#pragma omp parallel for
+		// node_id list in solution_elementsID's elements
+		::std::set<int> solution_node_id_set;
 		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 		{
 			int j = task->solution_elementsID[index_seId];
 
 			FEElement& element = *(mesh.Element(j));
-
 			for (int k = 0; k < element.Nodes(); k++)
 			{
 				int node_id = element.m_node[k];
-				auto& node = mesh.Node(node_id);
-				node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-				node.m_rt = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-				node.m_rp = { 0,0,0 };
-				node.m_d0 = { 0,0,0 };
-				node.m_dt = { 0,0,0 };
-				node.m_dp = { 0,0,0 };
-
+				solution_node_id_set.insert(node_id);
 			}
+		}
+		::std::vector<int> solution_node_id_list(solution_node_id_set.begin(), solution_node_id_set.end());
+
+#pragma region initialDeformationGradient
+		// set initial displacement to nodes
+		write_to_log_2(fem, "Set initial displacement to nodes.\n", outFile);
+
+/*    */#pragma omp parallel for
+		for (int index_node_id=0; index_node_id<solution_node_id_list.size(); index_node_id++)
+		{
+			int node_id = solution_node_id_list[index_node_id];
+			auto& node = mesh.Node(node_id);
+			node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
+			node.m_rt = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
+			node.m_rp = { 0,0,0 };
+			node.m_d0 = { 0,0,0 };
+			node.m_dt = { 0,0,0 };
+			node.m_dp = { 0,0,0 };
+		}
+
+/*    */#pragma omp parallel for
+		for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
+		{
+			int j = task->solution_elementsID[index_seId];
+
+			FEElement& element = *(mesh.Element(j));
 
 			FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
 
@@ -660,7 +677,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		for (int index_timestep = 0; index_timestep < timeArray.size(); index_timestep++)
 		{
 			::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
-#pragma omp parallel for
+/*        */#pragma omp parallel for
 			for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
 			{
 				for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
@@ -668,24 +685,26 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					currentCoordinate[index_coordinate_i][index_coordinate_j] += displacementArray[index_timestep][index_coordinate_i][index_coordinate_j];
 				}
 			}
-#pragma omp parallel for
+
+/*        */#pragma omp parallel for
+			for (int index_node_id = 0; index_node_id < solution_node_id_list.size(); index_node_id++)
+			{
+				int node_id = solution_node_id_list[index_node_id];
+				auto& node = mesh.Node(node_id);
+				node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] }; // true displacement as initial displacement.
+				node.m_d0 = { 0,0,0 };
+				node.m_rt = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // move to virtual displacement
+				node.m_dt = { 0,0,0 };
+				node.m_rp = { 0,0,0 };
+				node.m_dp = { 0,0,0 };
+			}
+
+/*        */#pragma omp parallel for
 			for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 			{
 				int j = task->solution_elementsID[index_seId];
 
 				FEElement& element = *(mesh.Element(j));
-
-				for (int k = 0; k < element.Nodes(); k++)
-				{
-					int node_id = element.m_node[k];
-					auto& node = mesh.Node(node_id);
-					node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] }; // true displacement as initial displacement.
-					node.m_d0 = { 0,0,0 };
-					node.m_rt = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // move to virtual displacement
-					node.m_dt = { 0,0,0 };
-					node.m_rp = { 0,0,0 };
-					node.m_dp = { 0,0,0 };
-				}
 
 				FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
 
@@ -695,7 +714,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			trueJArray[index_timestep] = ::std::vector<::std::vector<double>>(task->solution_elementsID.size());
 			truedeformationGradientArray[index_timestep] = ::std::vector<::std::vector<mat3d>>(task->solution_elementsID.size());
 
-#pragma omp parallel for
+/*        */#pragma omp parallel for
 			for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 			{
 				int j = task->solution_elementsID[index_seId];
@@ -790,7 +809,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			write_to_log_2(fem, "timestep:" + ::std::to_string(index_timestep) + "\n", outFile);
 
 			::std::vector<::std::vector<double>> currentCoordinate(task->initialCoordinate);
-#pragma omp parallel for
+/*        */#pragma omp parallel for
 			for (int index_coordinate_i = 0; index_coordinate_i < currentCoordinate.size(); index_coordinate_i++)
 			{
 				for (int index_coordinate_j = 0; index_coordinate_j < currentCoordinate[index_coordinate_i].size(); index_coordinate_j++)
@@ -820,34 +839,31 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				write_to_log_2(fem, "virtual field " + ::std::to_string(index_vf) + "\n", outFile);
 
 				write_to_log_2(fem, "set virtual displacement.\n", outFile);
+				pybind11::gil_scoped_release release;
 
-#pragma omp parallel for
+/*            */#pragma omp parallel for
+				for (int index_node_id = 0; index_node_id < solution_node_id_list.size(); index_node_id++)
+				{
+					int node_id = solution_node_id_list[index_node_id];
+					auto& node = mesh.Node(node_id);
+
+					pybind11::gil_scoped_acquire acquire;
+					auto vf_u = vf_u_functions[index_vf](currentCoordinate[node_id], node_id);
+
+					node.m_r0 = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // true displacement as initial displacement.
+					node.m_d0 = { 0,0,0 };
+					node.m_rt = { vf_u[0],vf_u[1], vf_u[2] }; // move to virtual displacement
+					node.m_dt = { 0,0,0 };
+					node.m_rp = { 0,0,0 };
+					node.m_dp = { 0,0,0 };
+				}
+
+/*            */#pragma omp parallel for
 				for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 				{
 					int j = task->solution_elementsID[index_seId];
 
 					FEElement& element = *(mesh.Element(j));
-
-					for (int k = 0; k < element.Nodes(); k++)
-					{
-						int node_id = element.m_node[k];
-						auto& node = mesh.Node(node_id);
-
-						auto vf_u = vf_u_functions[index_vf](currentCoordinate[node_id], node_id);
-						//for (int i = 0; i < 3; i++)
-						//{
-						//	vf_u[i] -= currentCoordinate[node_id][i];
-						//}
-
-						//node.m_r0 = { task->initialCoordinate[node_id][0], task->initialCoordinate[node_id][1], task->initialCoordinate[node_id][2] };
-
-						node.m_r0 = { currentCoordinate[node_id][0], currentCoordinate[node_id][1], currentCoordinate[node_id][2] }; // true displacement as initial displacement.
-						node.m_d0 = { 0,0,0 };
-						node.m_rt = { vf_u[0],vf_u[1], vf_u[2] }; // move to virtual displacement
-						node.m_dt = { 0,0,0 };
-						node.m_rp = { 0,0,0 };
-						node.m_dp = { 0,0,0 };
-					}
 
 					FESolidDomain& domain = static_cast<FESolidDomain&>(mesh.Domain(solution_elementsDomainID[index_seId]));
 
@@ -861,7 +877,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 				virtualstrainArrayV[index_timestep][index_vf] = ::std::vector<::std::vector<mat3ds>>(task->solution_elementsID.size());
 
-#pragma omp parallel for
+/*            */#pragma omp parallel for
 				for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 				{
 					int j = task->solution_elementsID[index_seId];
@@ -873,7 +889,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				if constexpr (CONST_calvvw_ma)
 				{
 					::std::vector<::std::vector<double>> vvw_elements(task->solution_elementsID.size());
-#pragma omp parallel for
+/*                */#pragma omp parallel for
 					for (int index_seId = 0; index_seId < task->solution_elementsID.size(); index_seId++)
 					{
 						int j = task->solution_elementsID[index_seId];
@@ -911,6 +927,11 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 							FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
 							FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
 
+							vec3d r0[FEElement::MAX_NODES];
+							domain.GetReferenceNodalCoordinates(solidElement, r0);
+							vec3d r[FEElement::MAX_NODES];
+							domain.GetCurrentNodalCoordinates(solidElement, r);
+
 							double Jc;
 							mat3d Ft, Fp;
 
@@ -937,6 +958,8 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 							}
 
+
+
 							if (j == 35072)
 							{
 								int awer23dsfcsafwerf = 0;
@@ -954,6 +977,11 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 							//mat3ds strain = pt.Strain(); // virtual strain
 
 							mat3ds& s = infstrain;
+
+							if (j == 0)
+							{
+								int psdoifwejmfkjwe3opewk = 0;
+							}
 
 							virtualstrainArrayV[index_timestep][index_vf][index_seId][n] = s;
 
@@ -1006,7 +1034,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 								::std::vector<::std::vector<double>> evw_surface(surface.Elements());
 								::std::vector<bool> evw_surface_flag(surface.Elements(), false);
 
-#pragma omp parallel for
+/*							  */#pragma omp parallel for
 								for (int index_surface_element = 0; index_surface_element < surface.Elements(); index_surface_element++)
 								{
 									auto& element = surface.Element(index_surface_element);
@@ -1119,6 +1147,11 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 											if (elementId == 35072 && n == 0)
 											{
 												int awer23dsfcsafwerf = 0;
+											}
+
+											if (index_timestep == 2)
+											{
+												int sapweoewkkememem = 0;
 											}
 
 											double ddd = 222.1;
@@ -1504,15 +1537,15 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	{
 		write_to_log_2(fem, "Start NLpot_0 :\n", outFile);
 
-		//nlopt::opt opt(nlopt::LN_COBYLA, 3);
-		nlopt::opt opt(nlopt::GN_DIRECT, 3);
+		nlopt::opt opt(nlopt::LN_COBYLA, 3);
+		//nlopt::opt opt(nlopt::GN_DIRECT, 3);
 		//nlopt::opt opt(nlopt::LN_NELDERMEAD, 3);
 		//nlopt::opt opt(nlopt::GN_ISRES, 3);
 		::std::vector<double> lb(3);
-		lb[0] = 0.2; lb[1] = 6.0; lb[2] = 1.0;
+		lb[0] = 0.2; lb[1] = 6.0; lb[2] = 0.5;
 		opt.set_lower_bounds(lb);
 		::std::vector<double> ub(3);
-		ub[0] = 0.4; ub[1] = 8.0; ub[2] = 2.0;
+		ub[0] = 0.4; ub[1] = 9.0; ub[2] = 1.5;
 		opt.set_upper_bounds(ub);
 
 		opt.set_min_objective(fun_nlpot, &function);
@@ -1525,7 +1558,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		// Set the initial point
 		::std::vector<double> x(3);
 		//x[0] = 0.48862; x[1] = 4.44033; x[2] = 1.00015;
-		x[0] = 0.3; x[1] = 7; x[2] = 1;
+		x[0] = 0.3; x[1] = 8; x[2] = 1;
 		//x[0] = 0.265891; x[1] = 8.9923; x[2] = 1.00006;
 		//x[0] = 0.5; x[1] = 5; x[2] = 2;
 
@@ -1580,7 +1613,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			// Set the initial point
 			::std::vector<double> x(3);
 			//x[0] = 0.48862; x[1] = 4.44033; x[2] = 1.00015;
-			x[0] = 0.3; x[1] = 7; x[2] = 1;
+			x[0] = 0.3; x[1] = 8; x[2] = 1;
 			//x[0] = 0.265891; x[1] = 8.9923; x[2] = 1.00006;
 			//x[0] = 0.5; x[1] = 5; x[2] = 2;
 

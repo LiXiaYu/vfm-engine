@@ -184,7 +184,7 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, const std
 		if (index_iter == iter_max - 1)
 		{
 			write_to_log_2(fem, "initial stress too long...\n", outFile);
-			return 9999999;
+			// return 9999999;
 		}
 	}
 
