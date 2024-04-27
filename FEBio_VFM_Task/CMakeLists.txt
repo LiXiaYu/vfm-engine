@@ -25,8 +25,6 @@ else()
 	)
 endif()
 
-
-
 include_directories ("${FEBioSDKPath}/include")
 if (WIN32)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -37,6 +35,13 @@ if (WIN32)
 else()
 	# linux上只有release版本
 	link_directories ("${FEBioSDKPath}/../lib")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	message("Debug Mode")
+	add_definitions(-DDEBUG)
+else()
+	message("Release Mode")
 endif()
 
 # 为此项目添加OpenMP支持
@@ -57,31 +62,34 @@ if(OPENMP_FOUND)
 
 endif()
 
-
-
 # 将源代码添加到此项目的可执行文件。
-add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp" "unilang_import.h" "FEBio_refunction.cpp" "FEBio_refunction.h")
+add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp"  "FEBio_refunction.cpp" "FEBio_refunction.h"  "VFMTask_pybind.cpp" "VFMTask_pybind.h")
 target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
 
 # 为此项目引用vcpkg安装的NLpot
 find_package(NLopt CONFIG REQUIRED)
 target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
 
-# 为此项目引用目录下的dll: unilang.dll
-if (WIN32)
-	set (UnilangPath "C:/Users/liqi/programming/mona/unilang/unilang/build")
+# 为此项目添加pybind11支持
 
-	link_directories("${UnilangPath}")
-	target_link_libraries (FEBio_VFM_Task PRIVATE "${UnilangPath}/unilang.lib")
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
+
+if (Python_FOUND)
+	message("Python Found")
+	message("Python Version: ${Python_VERSION}")
+	message("Python Include: ${Python_INCLUDE_DIRS}")
+	message("Python Libraries: ${Python_LIBRARIES}")
+	# need libpython and libpython _d
+
+	message("pybind11 INCLUDE_DIRECTORIES: ${pybind11_INCLUDE_DIRS}")
 else()
-	# set (CMAKE_CXX_FLAGS "-L/lib/x86_64-linux-gnu -lc -lm -ldl -lrt")
-	set (UnilangPath "/home/wangxiaofei/LiXiaYu/programming/unilang/unilang_dll/build")
-
-	link_directories("${UnilangPath}")
-	target_link_libraries (FEBio_VFM_Task PRIVATE "${UnilangPath}/unilang.dll")
-
-	# set_target_properties(FEBio_VFM_Task PROPERTIES LINK_FLAGS "-Wl,-rpath,/path/to/your/libc.so.6")
+	message("Python Not Found")
 endif()
+
+target_link_libraries (FEBio_VFM_Task PUBLIC Python::Python)
+target_link_libraries (FEBio_VFM_Task PRIVATE pybind11::pybind11 pybind11::embed)
+
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET FEBio_VFM_Task PROPERTY CXX_STANDARD 20)

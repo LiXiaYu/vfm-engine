@@ -24,11 +24,15 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "toolchainFile": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "/usr/bin/clang",
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
         "CMAKE_EXPERIMENTAL_CXX_SCANDEP_SOURCE": "/usr/bin/clang-scan-deps-17",
-        "CMAKE_TOOLCHAIN_FILE": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        "Python_EXECUTABLE": "/home/wangxiaofei/anaconda3/envs/base-pydebug/bin/python3.12d",
+        "Python_INCLUDE_DIR": "/home/wangxiaofei/anaconda3/envs/base-pydebug/include/python3.12d/",
+        "Python_LIBRARY": "/home/wangxiaofei/anaconda3/envs/base-pydebug/lib/libpython3.12d.so"
       },
       "condition": {
         "type": "equals",
@@ -94,7 +98,10 @@
       "displayName": "Linux Release",
       "inherits": "linux-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "Python_EXECUTABLE": "/home/wangxiaofei/anaconda3/envs/base-pydebug/bin/python3.12",
+        "Python_INCLUDE_DIR": "/home/wangxiaofei/anaconda3/envs/base-pydebug/include/python3.12/",
+        "Python_LIBRARY": "/home/wangxiaofei/anaconda3/envs/base-pydebug/lib/libpython3.12.so"
       }
     },
     {
@@ -109,9 +116,10 @@
     {
       "name": "linux-release-clang",
       "displayName": "Linux Release Clang",
-      "inherits": "linux-debug-clang",
+      "inherits": "linux-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
       }
     },
     {
