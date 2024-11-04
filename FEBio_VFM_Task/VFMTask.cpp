@@ -1834,13 +1834,30 @@ bool VFMTask::Init(const char* szfile)
 	//加载pybind11嵌入模块，运行命令
 	std::cout << "Load python file: " << sifilename << std::endl;
 	// 加载外部文件
-	this->pyfile_module = py::module_::import(python_module_name.c_str());
+	try
+	{
+		this->pyfile_module = py::module_::import(python_module_name.c_str());
+	}
+	catch (pybind11::error_already_set e)
+	{
+		::std::cout << e.what();
+		return false;
+	}
 
 	// InitVFMTask
-	auto result = pyfile_module.attr("InitVFMTask")(this->configure);
-	auto vfm_configure_from_py = result.cast<VFMTask_configure>();
-	// 从python文件中获取配置
-	this->configure = vfm_configure_from_py;
+	try
+	{
+		auto result = pyfile_module.attr("InitVFMTask")(this->configure);
+		auto vfm_configure_from_py = result.cast<VFMTask_configure>();
+		// 从python文件中获取配置
+		this->configure = vfm_configure_from_py;
+	}
+	catch (pybind11::error_already_set e)
+	{
+		::std::cout << e.what();
+		return false;
+	}
+
 
 	// number of cycles considered at the end
 	int numCycle = 2;

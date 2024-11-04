@@ -1,0 +1,8 @@
+{
+  "name": "febiovfmtask",
+  "version": "1.0.0",
+  "dependencies": [
+    "nlopt",
+    "pybind11"
+  ]
+}

@@ -3,6 +3,10 @@
 #
 if (WIN32)
 	set(FEBioSDKPath "C:/Program Files/FEBioStudio2/sdk")
+	if(EXISTS FEBioSDKPath)
+	else()
+		set(FEBioSDKPath "C:/Program Files/FEBioStudio/sdk")
+	endif()
 	set(LINK_LIBS
 		fecore.lib
 		febioxml.lib
@@ -66,12 +70,17 @@ endif()
 add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp"  "FEBio_refunction.cpp" "FEBio_refunction.h"  "VFMTask_pybind.cpp" "VFMTask_pybind.h")
 target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
 
+
+
 # 为此项目引用vcpkg安装的NLpot
 find_package(NLopt CONFIG REQUIRED)
 target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
 
 # 为此项目添加pybind11支持
 
+message("Python_EXECUTABLE:" ${Python_EXECUTABLE})
+
+set(Python_FIND_VIRTUALENV FIRST)
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
