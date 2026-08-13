@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use the VFM-engine thesis release, please cite this software and the associated thesis or publication when its verified details are available."
+type: software
+title: "VFM-engine"
+authors:
+  - family-names: "Li"
+    given-names: "Qi"
+version: "1.0-thesis"
+url: "https://github.com/LiXiaYu/vfm-engine"
+repository-code: "https://github.com/LiXiaYu/vfm-engine"
+license: MIT
