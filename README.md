@@ -18,20 +18,28 @@ contained in that release. Nothing in later governance or licensing documents
 withdraws, narrows, or revokes rights already granted for that MIT-licensed
 version.
 
-## Licensing direction
+## Licensing
 
 Licensing is version-specific.
 
 - `v1.0-thesis`: MIT License, permanently.
-- Current source inherited unchanged from that baseline: MIT License unless a
-  later release expressly says otherwise.
-- `v2+`: planned, but not yet released, under
-  `AGPL-3.0-or-later OR Commercial License`.
+- active `main` development line: available under either
+  `AGPL-3.0-or-later` or a separately executed commercial license, for material
+  that Qi Li or an authorized project licensor has the right to license.
 
-The v2 dual-licensing plan is not effective until the relevant release is
-published with complete license notices. A third-party dependency and source
-provenance audit must be completed first. See [LICENSING.md](LICENSING.md) and
-[the audit checklist](docs/DEPENDENCY_LICENSE_AUDIT.md).
+The root [LICENSE](LICENSE) contains the GNU Affero General Public License v3.0
+text for the open-source option. Commercial terms arise only from a separate
+signed agreement; [`LICENSES/COMMERCIAL.md`](LICENSES/COMMERCIAL.md) is an
+explanation, not a license grant.
+
+The license transition on `main` does not withdraw or narrow the MIT rights in
+the thesis baseline. In particular, code obtainable from `v1.0-thesis` remains
+usable under MIT even when identical code also appears in `main`. See
+[LICENSING.md](LICENSING.md), [the transition record](docs/LICENSE_TRANSITION.md),
+and [the dependency audit](docs/DEPENDENCY_LICENSE_AUDIT.md).
+
+No v2 release has been published. A third-party dependency, linkage, and source
+provenance audit remains a release gate.
 
 ## Project governance
 
@@ -42,8 +50,9 @@ provenance audit must be completed first. See [LICENSING.md](LICENSING.md) and
 - [Versioning and release policy](docs/VERSIONING.md)
 - [Commercial paths](COMMERCIAL.md)
 
-All new contributions require a DCO `Signed-off-by` line. Contributions to the
-dual-licensed core may also require an individual or corporate CLA.
+All new contributions require a DCO `Signed-off-by` line. Copyrightable external
+contributions to the dual-licensed codebase also require an executed individual
+or corporate CLA before merge.
 
 ## Current technical dependencies
 

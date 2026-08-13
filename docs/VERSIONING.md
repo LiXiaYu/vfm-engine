@@ -12,16 +12,20 @@ direct commits.
 
 ## Active line
 
-`main` is the proposed active governance and development branch. Locally it was
-created from the thesis baseline without rewriting `master`. Until the remote
-default branch is deliberately changed, `origin/master` remains the public
-default and must not be deleted.
+`main` is the active governance and development branch and the GitHub default
+branch. It was created from the thesis baseline without rewriting `master`.
+The historical `master` and `legacy/v1-thesis` refs continue to identify the MIT
+baseline and must not be force-pushed.
 
 ## License transitions
 
-Every release must state the license applying to that exact source. A change in
-the repository's default license cannot revoke a prior MIT release. A planned
-v2 dual-license release must not be cut until:
+Every release must state the license applying to that exact source. The active
+`main` line uses `AGPL-3.0-or-later OR Commercial License` for project-controlled
+material beginning with the recorded license-transition commit. A commercial
+license exists only when separately signed. This change cannot revoke the prior
+MIT release.
+
+A v2 dual-license release must not be cut until:
 
 1. all included code has documented provenance;
 2. contributor agreements support both intended license paths;

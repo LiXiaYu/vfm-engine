@@ -17,9 +17,9 @@ Describe the change, purpose, and validation performed.
 
 ## CLA
 
-- [ ] Not requested for this contribution; or
-- [ ] The required individual/corporate CLA has been executed through the
-      project-approved process.
+- [ ] I am the applicable project licensor; or
+- [ ] The required individual/corporate CLA has been executed and recorded
+      through the project-approved process before merge.
 
 Do not attach confidential agreements or personal information to a public pull
 request. Provide sensitive clearance evidence through the maintainer-approved

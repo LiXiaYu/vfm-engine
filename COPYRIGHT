@@ -1,0 +1,24 @@
+VFM-engine
+Copyright (C) 2024-2026 Qi Li
+
+The active main development line is free software: you can redistribute it
+and/or modify project-controlled material under the terms of the GNU Affero
+General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version.
+
+The active main development line is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General
+Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
+
+A separate commercial license may be available from an authorized licensor.
+Repository notices and contract drafts do not themselves grant commercial
+rights.
+
+VFM-engine v1.0-thesis remains available under the MIT License. See
+LICENSING.md and docs/LICENSE_TRANSITION.md for the exact historical boundary.
+
+Third-party material remains subject to its own copyright and license terms.

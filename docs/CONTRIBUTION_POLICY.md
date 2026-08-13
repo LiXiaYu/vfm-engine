@@ -58,7 +58,13 @@ rights cannot be verified.
 
 ## CLA
 
-For code intended for a dual-licensed core, the project may require an executed
-individual or corporate CLA in addition to DCO. The CLA process must identify
-the actual signing party and cannot be replaced by committing an unsigned
-template to Git.
+For copyrightable material intended for the dual-licensed codebase, the project
+requires an executed individual or corporate CLA in addition to DCO whenever
+the contributor is not the applicable project licensor. The CLA process must
+identify the actual signing party, authority, approved agreement version, and
+signature record. It cannot be replaced by committing an unsigned template,
+opening a pull request, or adding a DCO sign-off.
+
+Until the required CLA is executed, external work may be discussed and reviewed
+but must not be merged. The maintainer may reject any contribution whose
+copyright, patent, employer, institution, or funding position is unclear.

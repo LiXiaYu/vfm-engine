@@ -3,6 +3,13 @@
 VFM-engine itself is not offered for sale as an asset. Commercial collaboration
 should use clearly separated roles and agreements.
 
+The active `main` development line offers an open-source option under
+`AGPL-3.0-or-later`. An organization that wants rights outside those AGPL terms
+may negotiate a separate commercial license for material the licensor controls.
+No commercial rights arise merely from this page or from the contract drafts in
+`commercial/`. The MIT rights in `v1.0-thesis` remain available without a new
+commercial license.
+
 | Role | What the organization receives | Platform ownership |
 | --- | --- | --- |
 | Commercial licensee | Defined rights in a named version, product, field, or deployment | No transfer |

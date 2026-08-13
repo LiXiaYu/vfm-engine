@@ -17,26 +17,49 @@ do not withdraw or restrict the permissions already granted for v1.
 
 ### Current main branch
 
-The governance baseline begins with the same source as v1. Unless and until a
-later release contains clear, applicable licensing notices, code inherited from
-the v1 baseline remains governed by its MIT grant. Governance documentation is
-not a retroactive relicensing mechanism.
+Beginning with the commit titled
+`chore: adopt AGPL and commercial dual licensing on main`, VFM-engine material in
+`main` that Qi Li or an authorized project licensor has the right to license is
+offered under either:
 
-### Planned v2 and later releases
+1. **GNU Affero General Public License v3.0 or later**
+   (`AGPL-3.0-or-later`), whose full text is the root `LICENSE`; or
+2. a **separate commercial license** signed by the applicable licensor and
+   licensee.
 
-The current plan is to offer qualifying v2+ material under either:
+The commercial option is not a public click-through license and is not granted
+by this repository. `LICENSES/COMMERCIAL.md` and the files in `commercial/` are
+explanatory material or drafts. Commercial rights exist only under an executed
+agreement covering an exact version, package, product, and scope.
 
-```text
-AGPL-3.0-or-later
-OR
-Commercial License
-```
+### Effect of the MIT baseline
 
-This is a roadmap statement, not a present license grant and not an announcement
-that v2 has been released. Before adopting it, the project must confirm that it
-has the necessary rights in every included contribution and that all third-party
-dependencies, linked components, generated artifacts, and distribution methods
-are compatible with both intended paths.
+The same source can be offered under more than one license by an authorized
+copyright holder. Offering the `main` snapshot under AGPL does not cancel the
+earlier MIT offer.
+
+Anyone may continue obtaining and using `v1.0-thesis` under MIT. Moreover, a
+person relying on code actually obtained under that MIT grant keeps those MIT
+rights, including for portions that happen to be identical to content later
+present in `main`. The transition does not convert an existing MIT copy into an
+AGPL-only copy and does not make an additional commercial license necessary for
+ordinary exercise of the v1 MIT rights.
+
+New project-controlled work first added after the transition is not offered
+under MIT merely because it shares a repository or history with v1. Its public
+license is `AGPL-3.0-or-later` unless a file carries a different explicit notice.
+
+The historical MIT text is preserved at `LICENSES/MIT.txt`. See
+`docs/LICENSE_TRANSITION.md` for the recorded boundary.
+
+### v2 release gate
+
+This license transition establishes the intended licensing framework for active
+development; it is not an announcement that v2 has been released or that every
+possible binary distribution has been cleared. Before a v2 release, the project
+must confirm that it has the necessary rights in every included contribution
+and that all third-party dependencies, linked components, generated artifacts,
+and distribution methods are compatible with both intended paths.
 
 An actual v2 release must include unambiguous license files and notices, identify
 the exact covered material, preserve third-party notices, and explain how a
@@ -44,10 +67,15 @@ recipient elects a license.
 
 ## Contributions and dual licensing
 
-All contributions require DCO sign-off. Contributions intended for a
-dual-licensed core may also require a CLA that permits the project steward to
-offer the contribution under open-source and commercial terms. DCO alone should
-not be assumed to grant commercial relicensing authority.
+All contributions require DCO sign-off. Copyrightable contributions from anyone
+other than the applicable licensor require an executed individual or corporate
+CLA before merge into the dual-licensed codebase. The CLA must permit the
+project steward to offer the contribution under open-source and commercial
+terms. DCO alone does not grant commercial relicensing authority.
+
+Until an appropriate CLA is executed and recorded, an external contribution
+must not be merged into the dual-licensed codebase. A pull request or public
+discussion does not itself create the required commercial licensing rights.
 
 No contribution will be accepted when its ownership, confidentiality, patent,
 or license status is unclear.
@@ -64,11 +92,12 @@ not legal clearance.
 
 ## Commercial licenses and services
 
-A commercial agreement may grant defined rights to a future release, official
-SDK, source-access package, or support deliverable. It is not needed merely to
-exercise MIT rights in v1. Services, warranties, maintenance, validation,
-trademark permissions, and future-version rights may still be separately
-valuable and separately contracted.
+A commercial agreement may grant defined rights to `main`-derived material, a
+future release, official SDK, source-access package, or support deliverable
+without requiring the licensee to use the software under AGPL. It is not needed
+merely to exercise MIT rights in v1. Services, warranties, maintenance,
+validation, trademark permissions, and future-version rights may still be
+separately valuable and separately contracted.
 
 Questions involving a real distribution or enterprise agreement should be
 reviewed by qualified counsel.

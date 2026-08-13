@@ -38,18 +38,23 @@ If the contribution was developed in the course of employment, appointment,
 consulting, sponsored research, or use of material institutional resources,
 provide the maintainer with the relevant written authorization before review.
 
-## CLA requirement
+## Mandatory CLA for external copyrightable contributions
 
-DCO sign-off is required for all contributions. A Contributor License Agreement
-may additionally be required before accepting contributions to a core intended
-for open-source and commercial dual licensing. Contributors retain copyright
-under the draft CLA model while granting the project steward sufficient
-copyright and patent rights to distribute the contribution under open-source
-and commercial terms.
+DCO sign-off is required for all contributions. In addition, a copyrightable
+contribution from anyone other than the applicable project licensor must not be
+merged into the dual-licensed codebase until the contributor has executed the
+project-approved Individual CLA or an authorized employer has executed the
+Corporate CLA, as applicable.
+
+Contributors retain copyright under the CLA model while granting the project
+steward sufficient copyright and patent rights to distribute the contribution
+under open-source and commercial terms. A DCO sign-off, pull request, or public
+submission alone is not a substitute for the CLA.
 
 Do not treat the templates in `commercial/` as executed agreements. The project
-will identify the agreement and signature process applicable to a real
-contribution.
+must identify the actual signatory, approved agreement version, and signature
+record before merge. Until that process is complete, external contributions may
+be discussed or reviewed but must remain unmerged.
 
 ## Pull-request record
 

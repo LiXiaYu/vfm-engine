@@ -1,11 +1,13 @@
 # Dependency and license audit
 
-**Status: initial inventory only — not legal clearance**
+**Status: initial inventory only - not legal clearance**
 
-The planned `AGPL-3.0-or-later OR Commercial License` model for v2 is conditional
-on a complete source, dependency, and distribution audit. This file records what
-was visible in the public thesis baseline on 2026-08-13; it does not conclude
-that a commercial or AGPL distribution is permitted.
+The `main` licensing framework is `AGPL-3.0-or-later OR Commercial License` for
+project-controlled material. Release and distribution of a v2 package remain
+conditional on a complete source, dependency, linkage, and distribution audit.
+This file records what was visible in the public thesis baseline on 2026-08-13;
+it does not conclude that every commercial or AGPL binary distribution is
+permitted.
 
 ## Initial inventory
 
@@ -48,7 +50,7 @@ under a commercial license.
 
 ## Release gate
 
-No v2 dual-license announcement should be treated as effective until this audit
-has named versions, verified source links, stored license texts/notices, resolved
-all incompatible or unclear material, and received appropriate technical and
-legal review.
+No v2 release should be published until this audit has named versions, verified
+source links, stored license texts/notices, resolved all incompatible or unclear
+material, and received appropriate technical and legal review. The repository's
+license choice for project-owned source does not replace this release gate.
