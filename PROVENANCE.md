@@ -65,6 +65,10 @@ public `develop` branch. The squash commit records the reviewed integration
 under the current contribution and version-specific licensing policies; it does
 not rewrite or delete the source branch.
 
+The reviewed squash integration was subsequently promoted from `develop` to
+`main` for the `v1.1.0` source release without adding the 73 source-branch
+commits to the public branch ancestry.
+
 ## Provenance categories for future work
 
 Material changes should record one of these origins in the pull request or

@@ -132,7 +132,7 @@ bool read_inited_information(FEModel* fem, unsigned int when, void* pd)
 	size_t stress_size = task->total_steps * task->nstress * 6 * sizeof(double); // task->timestress; //sx, sy, sz, sxy, syz, szx
 	size_t nodalforce_size = task->total_steps * task->nnodalforce * 3 * sizeof(double); // task->timenodalforce; //fx,fy,fz
 	size_t constraintpressure_size = task->total_steps * task->nconstraint * sizeof(double); // task->timeconstraintpressure;
-	size_t constraintactivate_size = task->total_steps * sizeof(uint8_t); // task->timeconstraintactivate;
+	size_t constraintactivate_size = task->total_steps * task->nconstraint * sizeof(uint8_t); // task->timeconstraintactivate;
 
 	size_t filesize = time_size + displacement_size + stress_size + nodalforce_size + constraintpressure_size + constraintactivate_size;
 

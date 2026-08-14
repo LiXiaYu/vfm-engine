@@ -18,11 +18,24 @@ contained in that release. Nothing in later governance or licensing documents
 withdraws, narrows, or revokes rights already granted for that MIT-licensed
 version.
 
+## Current source release
+
+`v1.1.0` is the first post-thesis source release. It promotes the reviewed
+output-displacement development work, reorganizes the C++ sources into
+`include/` and `src/`, and preserves FEBio as the finite-element and
+constitutive runtime.
+
+VFM-engine `v1.1.0` is available under `AGPL-3.0-or-later` or a separately
+executed commercial license for project-controlled material. It is not an MIT
+continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
+or validated as part of this source release.
+
 ## Licensing
 
 Licensing is version-specific.
 
 - `v1.0-thesis`: MIT License, permanently.
+- `v1.1.0`: `AGPL-3.0-or-later` or a separately executed commercial license.
 - current post-thesis development line, including `main` and `develop`:
   available under either
   `AGPL-3.0-or-later` or a separately executed commercial license, for material
