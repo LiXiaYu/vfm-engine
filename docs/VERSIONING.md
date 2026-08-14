@@ -10,6 +10,17 @@ and remains MIT-licensed. The tag must never be moved or reused.
 baseline. It is not the active development line and should be protected against
 direct commits.
 
+## Current source release
+
+`v1.1.0` is the first post-thesis source release. It is licensed under
+`AGPL-3.0-or-later OR Commercial License` for project-controlled material. The
+minor version number does not extend the MIT terms of `v1.0-thesis` to new
+post-transition work.
+
+The `v1.1.0` tag identifies reviewed source. It does not assert that a binary
+package or every possible redistribution configuration has passed the full
+dependency and linkage audit.
+
 ## Branch roles
 
 `main` is the stable project branch and the GitHub default branch. `develop` is
@@ -53,7 +64,11 @@ A v2 dual-license release must not be cut until:
 ## Suggested naming
 
 - thesis baseline: `v1.0-thesis`;
-- later MIT-compatible v1 maintenance, if any: `v1.x.y` with explicit MIT notice;
+- first post-thesis source release: `v1.1.0`, with explicit
+  `AGPL-3.0-or-later OR Commercial License` notice;
+- later MIT-compatible maintenance of the thesis line, if any: use an explicitly
+  identified maintenance tag and MIT notice rather than assuming all `v1.x`
+  releases are MIT;
 - next major public release: `v2.0.0` only after the licensing audit; and
 - archived development head, if useful: a neutral tag such as
   `archive/<branch-name>-<YYYYMMDD>` for each independently verified head.

@@ -51,6 +51,24 @@ Use a separate annotated tag for each distinct head. Do not push private branch
 refs to the public remote merely to create evidence. Preserve a full Git bundle,
 an offline copy, the tag annotation, the commit SHA, and a SHA-256 digest.
 
+## Output-displacement development line
+
+On 2026-08-14, Qi Li confirmed that the Git author identities
+`LiXiaYu <aasll@126.com>` and `Li Qi <aasll@buaa.edu.cn>` both refer to Qi Li.
+The final tree of `gitlab-wxf/output_displacement` at commit
+`c3eae5bf5f8d5ec6d8bdba7da046435664b39197` was integrated into `develop` as a
+signed-off squash commit.
+
+The source branch contains 73 commits without DCO sign-off lines. Its original
+history remains available on the GitLab remote but is not made ancestry of the
+public `develop` branch. The squash commit records the reviewed integration
+under the current contribution and version-specific licensing policies; it does
+not rewrite or delete the source branch.
+
+The reviewed squash integration was subsequently promoted from `develop` to
+`main` for the `v1.1.0` source release without adding the 73 source-branch
+commits to the public branch ancestry.
+
 ## Provenance categories for future work
 
 Material changes should record one of these origins in the pull request or

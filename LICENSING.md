@@ -32,6 +32,16 @@ by this repository. `LICENSES/COMMERCIAL.md` and the files in `commercial/` are
 explanatory material or drafts. Commercial rights exist only under an executed
 agreement covering an exact version, package, product, and scope.
 
+### VFM-engine v1.1.0
+
+The source at annotated tag `v1.1.0` follows the current `main` licensing
+framework. Project-controlled material is offered under either
+`AGPL-3.0-or-later` or a separately executed commercial license.
+
+`v1.1.0` is a post-thesis source release and is not licensed under MIT merely
+because its version number begins with `1`. No binary build, bundled dependency,
+or redistribution clearance is implied by the source tag.
+
 ### Effect of the MIT baseline
 
 The same source can be offered under more than one license by an authorized

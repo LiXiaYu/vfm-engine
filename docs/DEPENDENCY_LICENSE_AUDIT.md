@@ -5,9 +5,9 @@
 The `main` licensing framework is `AGPL-3.0-or-later OR Commercial License` for
 project-controlled material. Release and distribution of a v2 package remain
 conditional on a complete source, dependency, linkage, and distribution audit.
-This file records what was visible in the public thesis baseline on 2026-08-13;
-it does not conclude that every commercial or AGPL binary distribution is
-permitted.
+This file records the initial inventory visible across the public thesis
+baseline and the `v1.1.0` source tree as reviewed on 2026-08-14. It does not
+conclude that every commercial or AGPL binary distribution is permitted.
 
 ## Initial inventory
 
@@ -15,7 +15,9 @@ permitted.
 | --- | --- | --- |
 | FEBio / FECore / FEBioMech | Direct header includes and plugin build references | Identify exact FEBio version and governing license/SDK terms; analyze linking, plugin distribution, trademark, and notice requirements |
 | NLopt | `vcpkg.json` and `nlopt.hpp` include | Pin exact version; capture license and bundled-algorithm notices; confirm static/dynamic distribution obligations |
+| Eigen3 | `vcpkg.json` and Eigen header includes | Pin exact version; verify MPL-2.0 and any bundled third-party notices; confirm that only supported public interfaces are used |
 | pybind11 | `vcpkg.json` and header includes | Pin exact version; preserve BSD-style notices; inspect generated/bundled artifacts |
+| mio | `vcpkg.json` and `mio/mmap.hpp` include | Pin exact version; preserve the applicable MIT-style copyright and license notice |
 | Python | custom vcpkg overlay marked `Python-2.0` and embedding code | Pin exact runtime version; preserve PSF and bundled third-party notices; review redistribution terms |
 | OpenMP | `omp.h` and build usage | Identify compiler/runtime implementation and redistribution terms |
 | Platform/runtime libraries | C++ standard library, dynamic loader, compiler toolchain | Record each target platform and redistributable runtime license |
@@ -54,3 +56,6 @@ No v2 release should be published until this audit has named versions, verified
 source links, stored license texts/notices, resolved all incompatible or unclear
 material, and received appropriate technical and legal review. The repository's
 license choice for project-owned source does not replace this release gate.
+
+The `v1.1.0` tag is a source release only. It does not represent a cleared or
+tested binary distribution.
