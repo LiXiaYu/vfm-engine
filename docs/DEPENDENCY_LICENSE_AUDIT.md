@@ -15,7 +15,9 @@ permitted.
 | --- | --- | --- |
 | FEBio / FECore / FEBioMech | Direct header includes and plugin build references | Identify exact FEBio version and governing license/SDK terms; analyze linking, plugin distribution, trademark, and notice requirements |
 | NLopt | `vcpkg.json` and `nlopt.hpp` include | Pin exact version; capture license and bundled-algorithm notices; confirm static/dynamic distribution obligations |
+| Eigen3 | `vcpkg.json` and Eigen header includes | Pin exact version; verify MPL-2.0 and any bundled third-party notices; confirm that only supported public interfaces are used |
 | pybind11 | `vcpkg.json` and header includes | Pin exact version; preserve BSD-style notices; inspect generated/bundled artifacts |
+| mio | `vcpkg.json` and `mio/mmap.hpp` include | Pin exact version; preserve the applicable MIT-style copyright and license notice |
 | Python | custom vcpkg overlay marked `Python-2.0` and embedding code | Pin exact runtime version; preserve PSF and bundled third-party notices; review redistribution terms |
 | OpenMP | `omp.h` and build usage | Identify compiler/runtime implementation and redistribution terms |
 | Platform/runtime libraries | C++ standard library, dynamic loader, compiler toolchain | Record each target platform and redistributable runtime license |

@@ -67,7 +67,11 @@ if(OPENMP_FOUND)
 endif()
 
 # 将源代码添加到此项目的可执行文件。
-add_library (FEBio_VFM_Task SHARED "FEBio_VFM_Task.cpp" "FEBio_VFM_Task.h" "VFMTask.cpp" "VFMTask.h" "VectorNum.h" "optim.h" "optim.cpp" "common_FEBio.h" "common_FEBio.cpp"  "FEBio_refunction.cpp" "FEBio_refunction.h"  "VFMTask_pybind.cpp" "VFMTask_pybind.h")
+include_directories("./include")
+
+aux_source_directory("./src" SRC_DIR)
+
+add_library (FEBio_VFM_Task SHARED ${SRC_DIR})
 target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
 
 
@@ -75,6 +79,9 @@ target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
 # 为此项目引用vcpkg安装的NLpot
 find_package(NLopt CONFIG REQUIRED)
 target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
+
+find_package(Eigen3 CONFIG REQUIRED)
+target_link_libraries(FEBio_VFM_Task PRIVATE Eigen3::Eigen)
 
 # 为此项目添加pybind11支持
 
@@ -97,7 +104,11 @@ else()
 endif()
 
 target_link_libraries (FEBio_VFM_Task PUBLIC Python::Python)
-target_link_libraries (FEBio_VFM_Task PRIVATE pybind11::pybind11 pybind11::embed)
+target_link_libraries (FEBio_VFM_Task PUBLIC pybind11::pybind11 pybind11::embed)
+
+# 为此项目添加mio支持
+find_package (mio CONFIG REQUIRED)
+target_link_libraries (FEBio_VFM_Task PRIVATE mio::mio)
 
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

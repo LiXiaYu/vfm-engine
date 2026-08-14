@@ -1,5 +1,5 @@
-﻿{
-    "version": 3,
+{
+  "version": 3,
   "configurePresets": [
     {
       "name": "windows-base",
@@ -25,12 +25,14 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
-      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeExecutable": "/home/wangxiaofei/src/vcpkg/downloads/tools/cmake-3.30.1-linux/cmake-3.30.1-linux-x86_64/bin/cmake",
       "toolchainFile": "/home/wangxiaofei/src/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/ninja",
         "CMAKE_C_COMPILER": "/usr/bin/clang",
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
         "CMAKE_EXPERIMENTAL_CXX_SCANDEP_SOURCE": "/usr/bin/clang-scan-deps-17",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/overlays",
         "Python_EXECUTABLE": "/home/wangxiaofei/anaconda3/envs/base-pydebug/bin/python3.12d",
         "Python_INCLUDE_DIR": "/home/wangxiaofei/anaconda3/envs/base-pydebug/include/python3.12d/",
         "Python_LIBRARY": "/home/wangxiaofei/anaconda3/envs/base-pydebug/lib/libpython3.12d.so"
@@ -111,8 +113,11 @@
       "displayName": "Linux Debug Clang",
       "inherits": "linux-debug",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "/usr/bin/clang",
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+        "CC": "/usr/bin/clang",
+        "CXX": "/usr/bin/clang++"
       }
     },
     {
@@ -157,6 +162,24 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows Debug remote",
+      "description": "使用 Visual Studio 开发环境定向到 Windows。(Debug)",
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       },
       "vendor": {
         "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {

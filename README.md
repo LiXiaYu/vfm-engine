@@ -23,7 +23,8 @@ version.
 Licensing is version-specific.
 
 - `v1.0-thesis`: MIT License, permanently.
-- active `main` development line: available under either
+- current post-thesis development line, including `main` and `develop`:
+  available under either
   `AGPL-3.0-or-later` or a separately executed commercial license, for material
   that Qi Li or an authorized project licensor has the right to license.
 
@@ -53,6 +54,23 @@ provenance audit remains a release gate.
 All new contributions require a DCO `Signed-off-by` line. Copyrightable external
 contributions to the dual-licensed codebase also require an executed individual
 or corporate CLA before merge.
+
+## Development workflow
+
+- `main` is the stable default branch.
+- `develop` is the integration branch for reviewed feature work.
+- Feature branches should normally merge into `develop` before integrated
+  changes are promoted to `main`.
+
+## Source layout
+
+- `FEBio_VFM_Task/include/` contains the public and internal C++ headers.
+- `FEBio_VFM_Task/src/` contains the C++ implementation, optimization,
+  callback, FEBio-integration, and Python-binding sources.
+- `FEBio_VFM_Task/CMakeLists.txt` defines the shared-library target and its
+  dependencies.
+- `CMakePresets.json`, `vcpkg.json`, and `vcpkg-configuration.json` describe the
+  current CMake and vcpkg configuration.
 
 ## Current technical dependencies
 
