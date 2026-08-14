@@ -4,7 +4,7 @@ VFM-engine licensing is version-specific:
 
 - `../LICENSE` — unmodified GNU Affero General Public License version 3 text,
   used with the `AGPL-3.0-or-later` election stated in `../LICENSING.md` for the
-  active `main` development line;
+  active development line;
 - `MIT.txt` — the MIT License preserved for the historical `v1.0-thesis`
   baseline; and
 - `COMMERCIAL.md` — explanation of the separately negotiated commercial path;

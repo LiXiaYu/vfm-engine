@@ -3,10 +3,9 @@
 ## Project origin
 
 VFM-engine was initiated and independently developed by Qi Li during his PhD
-work. The project and its public Git history predate Qi Li's subsequent
-postdoctoral appointment. It is treated as Qi Li's pre-existing background
-software and know-how, subject to any rights in identified third-party
-components.
+research. This provenance record documents the project's authorship, public Git
+history, version boundaries, and third-party components without making claims
+about unrelated employment or institutional arrangements.
 
 This record addresses the VFM-engine platform. It does not determine ownership
 of later institution-specific research results, data, patentable inventions, or
@@ -29,25 +28,23 @@ The following facts were recorded locally on 2026-08-13 (Asia/Shanghai):
 The tag and archival branch identify the same commit. The annotation explicitly
 records that the MIT grant for this baseline is not withdrawn.
 
-## Local recovery and unpublished refs
+## Repository recovery and other refs
 
 At the beginning of the 2026-08-13 governance work, the requested local path
 `C:\Users\liqi\programing\mona\vfm-engine` existed but was empty. The public
 repository above was verified and cloned into that path before any refs or
 documents were created.
 
-The recovered clone exposed only `origin/master`; no remote tags or other remote
-branches were advertised. No pre-existing unpublished VFM-engine branch was
-found in the recovered clone. This does **not** prove that private branches or
-older working copies do not exist on another computer, private remote, backup,
-or storage device.
+The recovered clone initially exposed only `origin/master`; no remote tags or
+other remote branches were advertised. Other development branches or working
+copies may exist on another computer, private remote, backup, or storage device.
 
-No `pre-postdoc-*` tag has therefore been invented. If a pre-appointment private
-branch is later located, record its original commit without rebasing or merging
-it first, for example:
+When another development branch is located, record and preserve its original
+head before rebasing, merging, or relicensing it. If an archival tag is useful,
+use a neutral descriptive name, for example:
 
 ```text
-pre-postdoc-baseline-2026-<branch-name>
+archive/<branch-name>-<YYYYMMDD>
 ```
 
 Use a separate annotated tag for each distinct head. Do not push private branch
@@ -68,7 +65,6 @@ equivalent review record:
 5. `generated`: produced with automated tools, reviewed by a human contributor,
    and checked for license, confidentiality, and provenance risk.
 
-Repository history is evidence, not a substitute for employment, funding,
-institutional, or commercial agreements. Qi Li should obtain a written
-background-IP and improvement-rights acknowledgement from any institution whose
-rules may affect future VFM-engine development.
+Repository history is evidence of authorship and version evolution, not a
+substitute for any applicable employment, funding, institutional, or commercial
+agreement.

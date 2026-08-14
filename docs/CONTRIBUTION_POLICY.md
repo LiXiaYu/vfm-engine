@@ -32,11 +32,11 @@ substitute for permission to copy code.
 
 ## Employment and institutional clearance
 
-Contributors acting during employment, a postdoctoral appointment, sponsored
-research, consultancy, or another institutional relationship must check the
-relevant IP, publication, confidentiality, funding, and software policies. When
-the relationship could reasonably claim the contribution, obtain a written
-authorization from a person with authority to bind the rightsholder.
+Contributors working under employment, sponsored research, consultancy, or
+another institutional relationship must check the relevant IP, publication,
+confidentiality, funding, and software policies. When the relationship could
+reasonably claim the contribution, obtain written authorization from a person
+with authority to bind the rightsholder.
 
 A supervisor's informal approval may be useful evidence but may not bind the
 employer or institution.

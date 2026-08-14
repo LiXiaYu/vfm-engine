@@ -1,9 +1,9 @@
 # VFM-engine
 
 VFM-engine is a Virtual Fields Method (VFM) research software project initiated
-and independently developed by Qi Li during his PhD work, before his subsequent
-postdoctoral appointment. The public thesis baseline integrates VFM workflows
-with FEBio and includes C++, Python embedding, and nonlinear-optimization code.
+and independently developed by Qi Li during his PhD research. The public thesis
+baseline integrates VFM workflows with FEBio and includes C++, Python embedding,
+and nonlinear-optimization code.
 
 ## Thesis baseline
 

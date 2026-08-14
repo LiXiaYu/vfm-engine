@@ -1,30 +1,28 @@
 # GitHub administration checklist
 
 This checklist is intentionally not automated. Complete it only after reviewing
-the local refs and governance commit.
+the local refs and governance commits.
 
-## 1. Push the immutable thesis references
+## 1. Thesis references
 
-Push only the known public baseline refs:
-
-```text
-git push origin refs/tags/v1.0-thesis
-git push origin refs/heads/legacy/v1-thesis:refs/heads/legacy/v1-thesis
-```
-
-Do not use `--force`. Do not push any private or `pre-postdoc-*` ref to the public
-remote.
-
-## 2. Push and review main
+The public thesis baseline is identified by:
 
 ```text
-git push -u origin main
+v1.0-thesis
+legacy/v1-thesis
 ```
 
-Review the branch on GitHub before changing the default. Confirm that
-`v1.0-thesis`, `legacy/v1-thesis`, and the old `master` all still resolve to
-`40d99d888409550d334efb5df95139f7dc1f1cda`, while `main` contains the later
-governance commit.
+Do not use `--force`. Do not push private or unreviewed development refs to the
+public remote.
+
+## 2. Stable and integration branches
+
+`main` is the stable default branch. `develop` is the integration branch for
+reviewed feature work. Feature branches should normally merge into `develop`
+first; promote `develop` to `main` only when the integrated state is ready.
+
+The historical `master` and `legacy/v1-thesis` branches remain pointers to the
+MIT thesis baseline and should not receive new development commits.
 
 ## 3. Publish the thesis release
 
@@ -42,19 +40,14 @@ In GitHub Releases:
 Release immutability generally applies only to releases published after it is
 enabled. Do not plan to move or reuse the tag.
 
-## 4. Change the default branch safely
+## 4. Rules and protection
 
-After `main` is pushed and reviewed, use repository **Settings → Branches** (or
-the current default-branch settings page) to change the default from `master` to
-`main`. Do not delete `master` as part of this migration. Update local clones
-only after the remote default changes.
-
-## 5. Rules and protection
-
-Create branch rules/rulesets for:
+Create branch rules or rulesets for:
 
 - `main`: block force pushes and deletion; require pull requests, review, status
   checks, conversation resolution, and signed commits where practical;
+- `develop`: block force pushes and deletion; require reviewed feature work and
+  passing checks before merge;
 - `master`: block force pushes and deletion; no direct development;
 - `legacy/v1-thesis`: block pushes, force pushes, and deletion; and
 - release tags such as `v*`: restrict creation/deletion and rely on immutable
@@ -64,19 +57,23 @@ Configure a DCO check for pull requests. A cryptographic commit signature and a
 DCO `Signed-off-by` line solve different problems; requiring one does not replace
 the other.
 
-## 6. Repository metadata
+If Qi Li is the only active maintainer, avoid requiring approval from another
+person until a second trusted reviewer exists; otherwise the rules can block all
+merges.
+
+## 5. Repository metadata
 
 - update the repository description and topics;
 - enable issue and pull-request templates only when the project is ready to
   accept outside work;
-- require the CLA process before accepting contributions intended for the
-  dual-licensed core;
+- require the CLA process before accepting external contributions intended for
+  the dual-licensed core;
 - review collaborator/admin access and enable strong account authentication;
 - keep commercial contract drafts visibly marked as drafts; and
-- do not label v2 as AGPL/commercially dual-licensed until the release audit is
+- do not publish a v2 release until the dependency and provenance audit is
   complete.
 
-## 7. Independent mirror and evidence archive
+## 6. Independent mirror and evidence archive
 
 - create a separately controlled private mirror with all public refs;
 - use a mirror push only to the confirmed empty/dedicated mirror remote;

@@ -10,11 +10,15 @@ and remains MIT-licensed. The tag must never be moved or reused.
 baseline. It is not the active development line and should be protected against
 direct commits.
 
-## Active line
+## Branch roles
 
-`main` is the active governance and development branch and the GitHub default
-branch. It was created from the thesis baseline without rewriting `master`.
-The historical `master` and `legacy/v1-thesis` refs continue to identify the MIT
+`main` is the stable project branch and the GitHub default branch. `develop` is
+the integration branch for reviewed feature work before it is promoted to
+`main`. Feature branches should use descriptive names such as
+`feature/output-displacement` and normally merge into `develop` first.
+
+`main` was created from the thesis baseline without rewriting `master`. The
+historical `master` and `legacy/v1-thesis` refs continue to identify the MIT
 baseline and must not be force-pushed.
 
 ## License transitions
@@ -51,7 +55,7 @@ A v2 dual-license release must not be cut until:
 - thesis baseline: `v1.0-thesis`;
 - later MIT-compatible v1 maintenance, if any: `v1.x.y` with explicit MIT notice;
 - next major public release: `v2.0.0` only after the licensing audit; and
-- private pre-appointment evidence: one annotated
-  `pre-postdoc-baseline-YYYY-<branch>` tag per independently verified head.
+- archived development head, if useful: a neutral tag such as
+  `archive/<branch-name>-<YYYYMMDD>` for each independently verified head.
 
 Private evidence refs should not be pushed to a public remote.
