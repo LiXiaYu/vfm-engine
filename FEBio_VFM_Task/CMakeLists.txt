@@ -1,118 +1,116 @@
-﻿# CMakeList.txt: FEBio_VFM_Task 的 CMake 项目，在此处包括源代码并定义
+# CMakeList.txt: FEBio_VFM_Task 的 CMake 项目，在此处包括源代码并定义
 # 项目特定的逻辑。
 #
-if (WIN32)
-	set(FEBioSDKPath "C:/Program Files/FEBioStudio2/sdk")
-	if(EXISTS FEBioSDKPath)
-	else()
-		set(FEBioSDKPath "C:/Program Files/FEBioStudio/sdk")
-	endif()
-	set(LINK_LIBS
-		fecore.lib
-		febioxml.lib
-		febiorve.lib
-		febioplot.lib
-		febiomix.lib
-		febiomech.lib
-		febiolib.lib
-		febiofluid.lib
-	)
-else()
-	set(FEBioSDKPath "/home/wangxiaofei/FEBioStudio/sdk")
-	set(LINK_LIBS
-		libfecore.so
-		libfebiorve.so
-		libfebiomix.so
-		libfebiomech.so
-		libfebiolib.so
-		libfebiofluid.so
-	)
+set(FEBIO_SDK_ROOT "$ENV{FEBIO_SDK_ROOT}" CACHE PATH
+    "Path to the FEBio SDK directory containing include/ and lib/")
+
+if(NOT FEBIO_SDK_ROOT)
+    if(WIN32)
+        set(_febio_sdk_candidates
+            "C:/Program Files/FEBioStudio/sdk"
+            "C:/Program Files/FEBioStudio2/sdk"
+            "C:/Program Files/FEBioStudio3/sdk")
+    else()
+        set(_febio_sdk_candidates
+            "$ENV{HOME}/FEBioStudio/sdk"
+            "/opt/FEBioStudio/sdk")
+    endif()
+
+    foreach(_candidate IN LISTS _febio_sdk_candidates)
+        if(EXISTS "${_candidate}/include/FECore/FECore.h")
+            set(FEBIO_SDK_ROOT "${_candidate}" CACHE PATH
+                "Path to the FEBio SDK directory containing include/ and lib/" FORCE)
+            break()
+        endif()
+    endforeach()
 endif()
 
-include_directories ("${FEBioSDKPath}/include")
-if (WIN32)
-	if(CMAKE_BUILD_TYPE STREQUAL "Release")
-		link_directories ("${FEBioSDKPath}/lib/Release")
-	else()
-		link_directories ("${FEBioSDKPath}/lib/Debug")
-	endif()
+if(NOT EXISTS "${FEBIO_SDK_ROOT}/include/FECore/FECore.h")
+    message(FATAL_ERROR
+        "FEBio SDK not found. Set FEBIO_SDK_ROOT to the SDK directory "
+        "that contains include/FECore/FECore.h and lib/.")
+endif()
+
+message(STATUS "Using FEBio SDK: ${FEBIO_SDK_ROOT}")
+
+set(FEBIO_LINK_LIBS
+    fecore
+    febioxml
+    febiorve
+    febioplot
+    febiomix
+    febiomech
+    febiolib
+    febiofluid)
+
+if(WIN32)
+    set(_febio_release_lib_dir "${FEBIO_SDK_ROOT}/lib/Release")
+    set(_febio_debug_lib_dir "${FEBIO_SDK_ROOT}/lib/Debug")
 else()
-	# linux上只有release版本
-	link_directories ("${FEBioSDKPath}/../lib")
+    set(_febio_release_lib_dir "${FEBIO_SDK_ROOT}/../lib")
+    set(_febio_debug_lib_dir "${_febio_release_lib_dir}")
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-	message("Debug Mode")
-	add_definitions(-DDEBUG)
+    message(STATUS "Debug mode")
 else()
-	message("Release Mode")
+    message(STATUS "Release mode")
 endif()
 
 # 为此项目添加OpenMP支持
 find_package(OpenMP REQUIRED)
 if(OPENMP_FOUND)
-	message("OPENMP FOUND")
-	
-	# if debug not add -O3
-	if(CMAKE_BUILD_TYPE STREQUAL "Release")
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -O3")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -O3")
-		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS} -O3")
-	else()
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")		
-	endif()
-
+    message(STATUS "OpenMP found")
 endif()
-
-# 将源代码添加到此项目的可执行文件。
-include_directories("./include")
 
 aux_source_directory("./src" SRC_DIR)
 
-add_library (FEBio_VFM_Task SHARED ${SRC_DIR})
-target_link_libraries (FEBio_VFM_Task PUBLIC ${LINK_LIBS})
+add_library(FEBio_VFM_Task SHARED ${SRC_DIR})
+target_include_directories(FEBio_VFM_Task
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${FEBIO_SDK_ROOT}/include")
+target_link_directories(FEBio_VFM_Task PRIVATE
+    "$<$<CONFIG:Debug>:${_febio_debug_lib_dir}>"
+    "$<$<NOT:$<CONFIG:Debug>>:${_febio_release_lib_dir}>")
+target_link_libraries(FEBio_VFM_Task
+    PUBLIC
+        ${FEBIO_LINK_LIBS}
+        OpenMP::OpenMP_CXX)
+target_compile_definitions(FEBio_VFM_Task PRIVATE
+    "$<$<CONFIG:Debug>:DEBUG>")
+target_compile_options(FEBio_VFM_Task PRIVATE
+    "$<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-O3>")
 
-
-
-# 为此项目引用vcpkg安装的NLpot
+# 为此项目引用vcpkg安装的NLopt
 find_package(NLopt CONFIG REQUIRED)
-target_link_libraries (FEBio_VFM_Task PRIVATE NLopt::nlopt)
+target_link_libraries(FEBio_VFM_Task PRIVATE NLopt::nlopt)
 
 find_package(Eigen3 CONFIG REQUIRED)
 target_link_libraries(FEBio_VFM_Task PRIVATE Eigen3::Eigen)
 
 # 为此项目添加pybind11支持
-
-message("Python_EXECUTABLE:" ${Python_EXECUTABLE})
+message(STATUS "Python_EXECUTABLE: ${Python_EXECUTABLE}")
 
 set(Python_FIND_VIRTUALENV FIRST)
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
-if (Python_FOUND)
-	message("Python Found")
-	message("Python Version: ${Python_VERSION}")
-	message("Python Include: ${Python_INCLUDE_DIRS}")
-	message("Python Libraries: ${Python_LIBRARIES}")
-	# need libpython and libpython _d
-
-	message("pybind11 INCLUDE_DIRECTORIES: ${pybind11_INCLUDE_DIRS}")
-else()
-	message("Python Not Found")
+if(Python_FOUND)
+    message(STATUS "Python found")
+    message(STATUS "Python version: ${Python_VERSION}")
+    message(STATUS "Python include: ${Python_INCLUDE_DIRS}")
+    message(STATUS "Python libraries: ${Python_LIBRARIES}")
+    message(STATUS "pybind11 include directories: ${pybind11_INCLUDE_DIRS}")
 endif()
 
-target_link_libraries (FEBio_VFM_Task PUBLIC Python::Python)
-target_link_libraries (FEBio_VFM_Task PUBLIC pybind11::pybind11 pybind11::embed)
+target_link_libraries(FEBio_VFM_Task PUBLIC Python::Python)
+target_link_libraries(FEBio_VFM_Task PUBLIC pybind11::pybind11 pybind11::embed)
 
 # 为此项目添加mio支持
-find_package (mio CONFIG REQUIRED)
-target_link_libraries (FEBio_VFM_Task PRIVATE mio::mio)
+find_package(mio CONFIG REQUIRED)
+target_link_libraries(FEBio_VFM_Task PRIVATE mio::mio)
 
-
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET FEBio_VFM_Task PROPERTY CXX_STANDARD 20)
-endif()
+target_compile_features(FEBio_VFM_Task PRIVATE cxx_std_20)
 
 # TODO: 如有需要，请添加测试并安装目标。
