@@ -30,10 +30,12 @@ executed commercial license for project-controlled material. It is not an MIT
 continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
 or validated as part of this source release.
 
-The current development version is `1.1.2`. It propagates FEBio solve and
+The current source release is `1.1.2`. It propagates FEBio solve and
 post-processing failures, keeps timestep capture state per task instance, and
 uses Python `BeforeOptim` as the required optimization entry point. The legacy
-in-process `NLpot_0` optimizer remains disabled.
+in-process `NLpot_0` optimizer remains disabled. Post-1.1.2 development is
+decomposing the callback implementation into behavior-preserving modules before
+further numerical changes are made.
 
 ## Licensing
 
@@ -89,6 +91,8 @@ or corporate CLA before merge.
   dependencies.
 - `CMakePresets.json`, `vcpkg.json`, and `vcpkg-configuration.json` describe the
   current CMake and vcpkg configuration.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) records the implemented runtime
+  flow and the current module responsibilities.
 
 ## Current technical dependencies
 
