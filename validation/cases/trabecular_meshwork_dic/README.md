@@ -14,7 +14,11 @@ The case applies DIC-derived displacements to an FEBio 4 model and runs the VFM 
 
 ## Status
 
-This case is currently a **candidate validation**, not an accepted numerical baseline. The historical run log ended with negative Jacobians and failure to converge. A reviewed `expected/metrics.json` must be added only after the case runs successfully and its target quantities and tolerances have been confirmed.
+This case has an accepted numerical baseline for the deterministic Python
+`elastic_E` optimization. It remains a **candidate validation** overall because
+the current plugin continues into the legacy `NLpot_0` path after writing the
+metrics and exits with `0xC0000409`. The historical run log also ended with
+negative Jacobians and failure to converge.
 
 ## Run
 
