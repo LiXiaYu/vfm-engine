@@ -34,5 +34,11 @@ set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEB
 
 project ("FEBio_VFM_Task" VERSION 1.1.2)
 
+include(CTest)
+
 # 包含子项目。
 add_subdirectory ("FEBio_VFM_Task")
+
+if(BUILD_TESTING)
+	add_subdirectory("tests")
+endif()

@@ -19,8 +19,12 @@ This case has an accepted numerical baseline for the deterministic Python
 and VFM-engine 1.1.2 hardens the task lifecycle and callback error handling. The
 generated metrics still match the baseline without the previous plugin crash.
 The failed FEBio solve is now propagated as a task failure. The case remains a
-**candidate validation** overall because FEBio still reports failed convergence,
-negative Jacobians, and error termination for the model.
+**candidate validation** overall because the FEBio nonlinear solve reaches its
+maximum retry limit and terminates with failed convergence. A trial state also
+reports negative Jacobians; this is an intermediate solver diagnostic, not the
+final termination reason. It is also separate from VFM-engine's virtual-field
+determinant, which may be negative when no inverse or physical constitutive
+evaluation depends on it.
 
 ## Run
 
