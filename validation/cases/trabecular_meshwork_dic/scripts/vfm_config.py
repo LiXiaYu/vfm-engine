@@ -35,6 +35,9 @@ def InitVFMTask(
     configure.isRead_FEMresult_fromsavefile = False
     configure.isReadfromsaveOptimfunc = False
     configure.isSetDisplacmentAndPressure = True
+    # This legacy candidate intentionally checks post-processing output even
+    # though its FEBio solve currently reports error termination.
+    configure.allow_failed_solve_postprocessing = True
     configure.isLaplaceVFM = False
     configure.isSetNewLaplaceVFMs = False
     configure.isTalbotLaplaceVFM_s = False

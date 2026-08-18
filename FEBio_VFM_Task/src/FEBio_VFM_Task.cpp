@@ -24,5 +24,5 @@ FECORE_EXPORT void GetPluginVersion(int& major, int& minor, int& patch)
 {
     major = 1;
     minor = 1; // mmap
-    patch = 1;
+    patch = 2;
 }

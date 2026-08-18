@@ -18,6 +18,7 @@ public:
     bool isRead_FEMresult_fromsavefile = false;
     bool isReadfromsaveOptimfunc = false;
     bool isSetDisplacmentAndPressure = false;
+    bool allow_failed_solve_postprocessing = false;
     ::std::string FEBio_dump_path;
     ::std::string Optim_dump_path;
 
@@ -121,6 +122,7 @@ public:
     mio::mmap_sink mmap;
 
     size_t total_steps = 0;
+    size_t recorded_steps = 0;
     size_t ndisplacement = 0;
     size_t nstress = 0;
     size_t nnodalforce = 0;

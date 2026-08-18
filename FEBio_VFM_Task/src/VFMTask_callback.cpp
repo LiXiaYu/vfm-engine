@@ -19,6 +19,7 @@
 bool read_inited_information(FEModel* fem, unsigned int when, void* pd)
 {
 	VFMTask* task = (VFMTask*)pd;
+	task->recorded_steps = 0;
 
 	::std::ofstream outFile;
 	outFile.open(task->outlogfile, ::std::ios::app);
@@ -226,7 +227,13 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 
 	if (task->configure.isRead_FEMresult_fromsavefile == false)
 	{
-		static int INIT_timestep = 0;
+		if (task->recorded_steps >= task->total_steps)
+		{
+			write_to_log_2(fem, "Recorded timestep count exceeds the allocated result buffer.\n", outFile);
+			return false;
+		}
+
+		const size_t index_timestep = task->recorded_steps;
 
 		// get timestep
 		double currenttime = fem->GetCurrentTime();
@@ -234,14 +241,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 		write_log(fem, 0, logs_ct.c_str());
 		outFile << logs_ct;
 		
-		FEAnalysis* currenttimestep = fem->GetCurrentStep();
-		int index_timestep = currenttimestep->m_ntimesteps + INIT_timestep;
-		task->configure.timestep[index_timestep] = currenttime; 
-
-		if (INIT_timestep == 0)
-		{
-			INIT_timestep = 1;
-		}
+		task->configure.timestep[index_timestep] = currenttime;
 
 		// get displacement
 		DataStore& datastore = fem->GetDataStore();
@@ -411,6 +411,8 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 				}
 			}
 		}
+
+		task->recorded_steps++;
 	}
 	else
 	{
@@ -710,6 +712,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			::std::string logs = "error: " + ::std::string(e.what()) + "\n";
 			write_log(fem, 2, logs.c_str());
 			outFile << logs;
+			return false;
 		}
 
 		pybind11::gil_scoped_release release;
@@ -718,28 +721,6 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		// log element nubmer
 		write_log(fem, 0, ("element_number: " + to_string(element_number) + "\n").c_str());
 
-		FEElement* pelement0 = mesh.Element(0);
-		FEElement* pelement643911 = mesh.Element(643911);
-		FEElement* pelement0_ = mesh.FindElementFromID(0);
-		FEElement* pelement643911_ = mesh.FindElementFromID(643911);
-		mesh.FindElementIndexFromID(643911);
-		//log the two element is null or not
-		if (pelement0 == nullptr)
-		{
-			write_log(fem, 2, "error: element 0 is null\n");
-		}
-		if (pelement643911 == nullptr)
-		{
-			write_log(fem, 2, "error: element 643911 is null\n");
-		}
-		if (pelement0_ == nullptr)
-		{
-			write_log(fem, 2, "error: FindElementFromID 0 is null\n");
-		}
-		if (pelement643911_ == nullptr)
-		{
-			write_log(fem, 2, "error: FindElementFromID 643911 is null\n");
-		}
 
 		auto it = ::std::remove_if(task->solution_elementsID.begin(), task->solution_elementsID.end(),
 			[=, &mesh, &task](int j)->bool {
@@ -1085,6 +1066,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				::std::string logs = "error: " + ::std::string(e.what()) + "\n";
 				write_log(fem, 2, logs.c_str());
 				outFile << logs;
+				return false;
 			}
 
 			//task->timedisplacement.resize(task->configure.timestep.size());
@@ -1525,7 +1507,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				node_xyzs_all[index_timestep] = node_xyzs_r;
 			}
 		
-			pyfunctioncall(fem, "", outFile, task->pyfile_module, "Display_3D_Element_animation", node_xyzs_all, "./temp/debug/coordinate/Element " + ::std::to_string(j) + ".gif");
+			if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
+			{
+				pyfunctioncall(fem, "", outFile, task->pyfile_module, "Display_3D_Element_animation", node_xyzs_all, "./temp/debug/coordinate/Element " + ::std::to_string(j) + ".gif");
+			}
 		}
 
 
@@ -1678,7 +1663,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 						else
 						{
 #ifdef DEBUG
-							task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/negative/Timestamp " + ::std::to_string(index_timestep) + " NegativeJacobian Element " + ::std::to_string(j) + ".gif");
+							if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
+							{
+								task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/negative/Timestamp " + ::std::to_string(index_timestep) + " NegativeJacobian Element " + ::std::to_string(j) + ".gif");
+							}
 
 							// "j" write to log2
 							write_to_log_2(fem, "NegativeJacobian Element:" + ::std::to_string(j) + "\n", outFile);
@@ -1879,7 +1867,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 							node_xyzs_all[1][k][2] = node_xyzs_r0[k][2] + node_xyzs_rt[k][2];
 						}
 
-						task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/virtual negative/Timestamp " + ::std::to_string(index_timestep) + " Virtual NegativeJacobian Element " + ::std::to_string(j) + ".gif");
+						if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
+						{
+							task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/virtual negative/Timestamp " + ::std::to_string(index_timestep) + " Virtual NegativeJacobian Element " + ::std::to_string(j) + ".gif");
+						}
 
 						// "j" write to log2
 						write_to_log_2(fem, "NegativeJacobian Element:" + ::std::to_string(j) + "\n", outFile);
@@ -2004,7 +1995,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 									::std::vector<::std::vector<::std::vector<double>>> copy_r_all{ copy_r0, copy_r };
 									pybind11::gil_scoped_acquire acquire;
-									task->pyfile_module.attr("Display_3D_Element_animation")(copy_r_all, "./temp/debug/virtual strain negative/Timestamp " + ::std::to_string(index_timestep) + " Virtual Strain Exception Jacobian Element " + ::std::to_string(j) + ".gif");
+									if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
+									{
+										task->pyfile_module.attr("Display_3D_Element_animation")(copy_r_all, "./temp/debug/virtual strain negative/Timestamp " + ::std::to_string(index_timestep) + " Virtual Strain Exception Jacobian Element " + ::std::to_string(j) + ".gif");
+									}
 
 									throw e; // don't continue execution!!!!
 								}
@@ -3320,8 +3314,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		return value;
 		};
 
-	const bool CONST_fun_compare_W = true;
-	if constexpr (CONST_fun_compare_W == true)
+	if (pybind11::hasattr(task->pyfile_module, "fun_compare_W"))
 	{
 		try
 		{
@@ -3329,27 +3322,28 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << e.what() << '\n';
+			write_to_log_2(fem, "Optional Python callback fun_compare_W failed: " + ::std::string(e.what()) + "\n", outFile);
 		}
 	}
 
-	const bool CONST_optim_before = true;
-	if constexpr (CONST_optim_before == true)
+	if (pybind11::hasattr(task->pyfile_module, "OptimByPython"))
 	{
-		// py call before_optim
 		try
 		{
 			task->pyfile_module.attr("OptimByPython")(params->LaplaceVFM_s, params->fs);
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << e.what() << '\n';
+			write_to_log_2(fem, "Optional Python callback OptimByPython failed: " + ::std::string(e.what()) + "\n", outFile);
 		}
+	}
 
+	if (pybind11::hasattr(task->pyfile_module, "OptimByPython_invF"))
+	{
 		try
 		{
 			::std::vector<double> t(timeArray);
-			for (int i = 0; i < t.size(); ++i)
+			for (size_t i = 0; i < t.size(); ++i)
 			{
 				t[i] -= timeArray[0];
 			}
@@ -3358,20 +3352,25 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << e.what() << '\n';
+			write_to_log_2(fem, "Optional Python callback OptimByPython_invF failed: " + ::std::string(e.what()) + "\n", outFile);
 		}
 	}
 
-	// py call before_optim
+	// Python owns the optimization strategy. BeforeOptim is the required entry point.
+	if (!pybind11::hasattr(task->pyfile_module, "BeforeOptim"))
+	{
+		write_to_log_2(fem, "Required Python callback BeforeOptim is not defined.\n", outFile);
+		return false;
+	}
+
 	try
 	{
-		task->pyfile_module.attr("BeforeOptim")(task->configure).cast<VFMTask_configure>();
+		task->configure = task->pyfile_module.attr("BeforeOptim")(task->configure).cast<VFMTask_configure>();
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << e.what() << '\n';
-
-		return true;
+		write_to_log_2(fem, "Required Python callback BeforeOptim failed: " + ::std::string(e.what()) + "\n", outFile);
+		return false;
 	}
 #pragma region Opt10x10x10
 
