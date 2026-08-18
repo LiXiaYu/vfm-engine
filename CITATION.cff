@@ -5,8 +5,8 @@ title: "VFM-engine"
 authors:
   - family-names: "Li"
     given-names: "Qi"
-version: "1.1.0"
-date-released: 2026-08-14
+version: "1.1.1"
+date-released: 2026-08-18
 url: "https://github.com/LiXiaYu/vfm-engine"
 repository-code: "https://github.com/LiXiaYu/vfm-engine"
 license: "AGPL-3.0-or-later"

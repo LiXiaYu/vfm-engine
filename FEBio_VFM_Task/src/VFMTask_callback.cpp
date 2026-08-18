@@ -3587,7 +3587,9 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 #pragma endregion
 
 #pragma region NLpot_0
-	const bool CONST_NLpot_0 = true;
+	// Legacy in-process NLopt optimization is retained temporarily for reference.
+	// Optimization is now performed by the Python BeforeOptim callback above.
+	const bool CONST_NLpot_0 = false;
 	if constexpr (CONST_NLpot_0 == true)
 	{
 		write_to_log_2(fem, "Start NLpot_0 :\n", outFile);

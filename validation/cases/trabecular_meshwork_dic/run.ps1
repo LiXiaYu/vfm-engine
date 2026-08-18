@@ -123,8 +123,17 @@ finally {
     Pop-Location
 }
 
-if ($febioExitCode -ne 0) {
+$febioReportedErrorTermination = Select-String `
+    -LiteralPath $runLog `
+    -Pattern "E R R O R   T E R M I N A T I O N" `
+    -SimpleMatch `
+    -Quiet
+
+if ($febioExitCode -ne 0 -or $febioReportedErrorTermination) {
     Get-Content -LiteralPath $runLog -Tail 80
+    if ($febioReportedErrorTermination) {
+        throw "FEBio reported error termination in $runLog"
+    }
     throw "FEBio failed with exit code $febioExitCode. See $runLog"
 }
 

@@ -12,9 +12,10 @@ The reference environment was:
 - validation seed `20260818`.
 
 This baseline covers the deterministic Python `elastic_E` optimization result.
-It does not mark the complete FEBio task as passing: after writing these metrics,
-the current plugin continues into the legacy `NLpot_0` path and exits with
-`0xC0000409`. The case remains a candidate until that execution failure is fixed.
+It was reproduced by VFM-engine 1.1.1 in run `20260818-112424` after the legacy
+`NLpot_0` path was disabled. The previous `0xC0000409` plugin crash no longer
+occurs. The complete case remains a candidate because the FEBio model still
+reports failed convergence, negative Jacobians, and error termination.
 
 The tolerances allow small floating-point and optimizer differences while keeping
 the optimized modulus tightly constrained. Because the objective value is close
