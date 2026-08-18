@@ -11,5 +11,5 @@ reference_model = "input/model/reference.feb"
 input_data = "input/data/dic_positions.npy"
 vfm_script = "scripts/vfm_config.py"
 baseline_established = true
-historical_outcome = "failed_to_converge_negative_jacobians"
+historical_outcome = "nonlinear_nonconvergence_max_retries_with_transient_negative_jacobian_report"
 last_observed_outcome = "metrics_match_baseline_solver_failure_propagated"

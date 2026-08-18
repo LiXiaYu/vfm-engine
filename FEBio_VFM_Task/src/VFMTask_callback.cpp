@@ -240,7 +240,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		// log: end_index, sum_sycle_time
 		write_to_log_2(fem, "end_index: " + to_string(end_index) + "\n", outFile);
 
-		//int steps_per_cycle = 10; // 
+		//int steps_per_cycle = 10; //
 		//int nStep_total = task->timestep.size();
 
 		//int start_index = nStep_total - steps_per_cycle * numCycle;
@@ -315,7 +315,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		auto it = ::std::remove_if(task->solution_elementsID.begin(), task->solution_elementsID.end(),
 			[=, &mesh, &task](int j)->bool {
 				FEElement& element = *(mesh.Element(j));
-				
+
 				// 检查element 是否为null
 				if (mesh.Element(j) == nullptr)
 				{
@@ -410,7 +410,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 				}
 			}
-			
+
 		}
 		for (int j = 0; j < task->configure.constraint_load.size(); j++)
 		{
@@ -441,9 +441,9 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			}
 		}
 		// 移除fixednode中所有在all_load_node_set中的节点
-		//task->configure.fixednode.erase(std::remove_if(task->configure.fixednode.begin(), task->configure.fixednode.end(), 
-		//	[&](int node) { 
-		//		return all_load_node_set.find(node) != all_load_node_set.end(); 
+		//task->configure.fixednode.erase(std::remove_if(task->configure.fixednode.begin(), task->configure.fixednode.end(),
+		//	[&](int node) {
+		//		return all_load_node_set.find(node) != all_load_node_set.end();
 		//	}), task->configure.fixednode.end());
 
 
@@ -471,11 +471,11 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			for (int i = 0; i < mesh.Domains(); i++)
 			{
 				FEDomain& d = mesh.Domain(i);
-				
+
 				for (int j = 0; j < d.Elements(); j++)
 				{
 					FEElement& el = d.ElementRef(j);
-					
+
 					if (element->GetID() == el.GetID())
 					{
 						domain_id = i;
@@ -796,7 +796,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 									}
 
 									::std::vector<double> c_stress = task->configure.setstress_function(xyz_o, index_timestep);
-									
+
 									::std::copy(c_stress.begin(), c_stress.end(), task->timestress[index_timestep][element_index].begin());
 									//task->timestress[index_timestep][elementId] = c_stress;
 
@@ -891,7 +891,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 
 		//convert task->timestress[:][:][0,1,2,3,4,5] -> task->timestress[:][:][0,3,5,1,4,2]
-  //      #pragma omp parallel for	
+  //      #pragma omp parallel for
 		//for (int i = 0; i < task->timestress.size(); i++)
 		//{
 		//	for (int j = 0; j < task->timestress[i].size(); j++)
@@ -904,7 +904,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 		::std::vector<::std::vector<double>> initialStress = span2d_to_vector2d(task->timestress[start_index]);
 		::std::vector<::std::vector<::std::vector<double>>> stressArray = span3d_to_vector3d(task->timestress.begin() + start_index, task->timestress.begin() + end_index + 1);
-		
+
 		::std::vector<double> initialConstraintPressure = span_to_vector(task->timeconstraintpressure[start_index]);
 		::std::vector<::std::vector<double>> constraintPressureArray = span2d_to_vector2d(task->timeconstraintpressure.begin() + start_index, task->timeconstraintpressure.begin() + end_index + 1);
 
@@ -920,7 +920,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			write_to_log_2(fem, ::std::string("index i: ") + ::std::to_string(i) + "\n", outFile);
 			for (int j = 0; j < constraintPressureArray[i].size(); j++)
 			{
-				
+
 				::std::ostringstream oss;
 				oss <<::std::setprecision(12) << constraintPressureArray[i][j];
 				if(j == constraintPressureArray[i].size() - 1 && i != constraintPressureArray.size() - 1)
@@ -1096,7 +1096,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				}
 				node_xyzs_all[index_timestep] = node_xyzs_r;
 			}
-		
+
 			if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
 			{
 				pyfunctioncall(fem, "", outFile, task->pyfile_module, "Display_3D_Element_animation", node_xyzs_all, "./temp/debug/coordinate/Element " + ::std::to_string(j) + ".gif");
@@ -1204,21 +1204,6 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				int j = task->solution_elementsID[index_seId];
 
 				FEElement& element = *(mesh.Element(j));
-				int nodes_number = element.Nodes();
-
-				::std::vector<::std::vector<double>> node_xyzs_r0(nodes_number);
-				::std::vector<::std::vector<double>> node_xyzs_rt(nodes_number);
-				for (int k = 0; k < nodes_number; k++)
-				{
-					int node_id = element.m_node[k];
-					auto& node = mesh.Node(node_id);
-					::std::vector<double> xyz_r0 = { node.m_r0.x , node.m_r0.y,node.m_r0.z };
-					node_xyzs_r0[k] = xyz_r0;
-					::std::vector<double> xyz_rt = { node.m_rt.x , node.m_rt.y,node.m_rt.z };
-					node_xyzs_rt[k] = xyz_rt;
-				}
-				::std::vector<::std::vector<::std::vector<double>>> node_xyzs_all{ node_xyzs_r0,node_xyzs_rt };
-
 				// convert element to solid element
 				FESolidElement& solidElement = static_cast<FESolidElement&>(element);
 
@@ -1233,75 +1218,17 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
 					FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
 
-					double Jc;
-					mat3d Ft, Fp;
-
-					// need recalculate
-					// calculate inverse jacobian
-					try
-					{
-						Jc = domain_defgrad_GJ(domain, solidElement, Ft, n);
-						//domain.defgradp(solidElement, Fp, n);
-					}
-					catch (NegativeJacobian& e)
-					{
-						double Jt = Ft.det();
-						if (::std::abs(Jt) < 1e-10)
-						{
-
-						}
-						else
-						{
-#ifdef DEBUG
-							if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
-							{
-								task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/negative/Timestamp " + ::std::to_string(index_timestep) + " NegativeJacobian Element " + ::std::to_string(j) + ".gif");
-							}
-
-							// "j" write to log2
-							write_to_log_2(fem, "NegativeJacobian Element:" + ::std::to_string(j) + "\n", outFile);
-							// write node_xyzs_r0 to log2
-							write_to_log_2(fem, "node_xyzs_r0:\n", outFile);
-							for (int k = 0; k < node_xyzs_r0.size(); k++)
-							{
-								write_to_log_2(fem, "Node id:" + ::std::to_string(element.m_node[k]) + " : " + ::std::to_string(node_xyzs_r0[k][0]) + " " + ::std::to_string(node_xyzs_r0[k][1]) + " " + ::std::to_string(node_xyzs_r0[k][2]) + "\n", outFile);
-							}
-							// write node_xyzs_rt to log2
-							write_to_log_2(fem, "node_xyzs_rt:\n", outFile);
-							for (int k = 0; k < node_xyzs_rt.size(); k++)
-							{
-								write_to_log_2(fem, "Node id:" + ::std::to_string(element.m_node[k]) + " : " + ::std::to_string(node_xyzs_rt[k][0]) + " " + ::std::to_string(node_xyzs_rt[k][1]) + " " + ::std::to_string(node_xyzs_rt[k][2]) + "\n", outFile);
-							}
-
-							// DEBUG, output and continue...
-							// shouldn't break
-							// break;
-
-#else
-
-
-							// Excessive deformation, mesh distortion!!!!
-							write_to_log_2(fem, "Shouldn't continue!!! Excessive deformation, mesh distortion at Element:" + ::std::to_string(j) + ",timestep:" + ::std::to_string(index_timestep) + "\n", outFile);
-							throw e; // don't continue execution!!!!
-
-
-							// For debug, output and continue...
-							//task->pyfile_module.attr("Display_3D_Element_animation")(node_xyzs_all, "./temp/debug/negative/Timestamp " + ::std::to_string(index_timestep) + " NegativeJacobian Element " + ::std::to_string(j) + ".gif");
-#endif
-
-						}
-
-					}
-
+					const auto physicalDeformation = domain_physical_deformation_gradient(domain, solidElement, n);
+					const mat3d& Ft = physicalDeformation.gradient;
 					if (j == 35072)
 					{
 						int awer23dsfcsafwerf = 0;
 					}
 
 					pt.m_F = Ft;
-					pt.m_J = Ft.det();
+					pt.m_J = physicalDeformation.determinant;
 
-					trueJArray[index_timestep][index_seId][n] = Jc;
+					trueJArray[index_timestep][index_seId][n] = physicalDeformation.integration_jacobian;
 					truedeformationGradientArray[index_timestep][index_seId][n] = Ft;
 				}
 
@@ -1532,8 +1459,8 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 						vvw_elements[index_seId] = ::std::vector<double>(element.GaussPoints());
 
-						// find material by element
-						FEMaterial* pmat = fem->GetMaterial(element.GetMatID());
+
+
 
 						// convert element to solid element
 						FESolidElement& solidElement = static_cast<FESolidElement&>(element);
@@ -1548,55 +1475,10 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 							FEMaterialPoint& mp = *(solidElement.GetMaterialPoint(n));
 							FEElasticMaterialPoint& pt = *(mp.ExtractData<FEElasticMaterialPoint>());
 
-							vec3d r0[FEElement::MAX_NODES];
-							domain.GetReferenceNodalCoordinates(solidElement, r0);
-							vec3d r[FEElement::MAX_NODES];
-							domain.GetCurrentNodalCoordinates(solidElement, r);
 
-							double Jc;
-							mat3d Ft, Fp;
-
-							// need recalculate
-							// calculate inverse jacobian
-							double currentJc = trueJArray[index_timestep][index_seId][n];
-
-							try
-							{
-								Jc = domain_defgrad_GJ(domain, solidElement, Ft, n);
-								//domain.defgradp(solidElement, Fp, n);
-							}
-							catch (NegativeJacobian& e)
-							{
-								double Jt = Ft.det();
-								if (::std::abs(Jt) < 1e-10)
-								{
-
-								}
-								else
-								{
-									// convert r0 to vector<vec3d>
-									::std::vector<::std::vector<double>> copy_r0(nodes.size());
-									::std::vector<::std::vector<double>> copy_r(nodes.size());
-									for (int k = 0; k < nodes.size(); k++)
-									{
-										copy_r0[k] = { r0[k].x, r0[k].y, r0[k].z };
-										copy_r[k] = { r[k].x, r[k].y, r[k].z };
-									}
-
-									::std::vector<::std::vector<::std::vector<double>>> copy_r_all{ copy_r0, copy_r };
-									pybind11::gil_scoped_acquire acquire;
-									if (pybind11::hasattr(task->pyfile_module, "Display_3D_Element_animation"))
-									{
-										task->pyfile_module.attr("Display_3D_Element_animation")(copy_r_all, "./temp/debug/virtual strain negative/Timestamp " + ::std::to_string(index_timestep) + " Virtual Strain Exception Jacobian Element " + ::std::to_string(j) + ".gif");
-									}
-
-									throw e; // don't continue execution!!!!
-								}
-
-							}
-
-
-
+							const double integrationDetJ = trueJArray[index_timestep][index_seId][n];
+							const auto virtualDeformation = domain_virtual_field_gradient(domain, solidElement, n);
+							const mat3d& Ft = virtualDeformation.gradient;
 							if (j == 35072)
 							{
 								int awer23dsfcsafwerf = 0;
@@ -1604,30 +1486,15 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 
 
-							double J = pt.m_J;
-							double J0 = mp.m_J0;
-							
+
 							pt.m_F = Ft;
-							pt.m_J = Ft.det();
+							pt.m_J = virtualDeformation.determinant;
 
 
-							// strainCompute infinitesimal strain
-							mat3ds infstrain = pt.m_F.sym();
-							// strainCompute green-lagrange strain
-							mat3ds FEstrain = pt.Strain(); // virtual strain error m_r no real position
-							mat3d I = mat3d(1,0,0,0,1,0,0,0,1);
-							mat3d lstrain = (pt.m_F.transpose()*pt.m_F - I)*0.5;
-							// convert lstrain to mat3ds
-							mat3ds strain = mat3ds(lstrain[0][0], lstrain[1][1], lstrain[2][2], lstrain[0][1], lstrain[1][2], lstrain[0][2]);
-							
-							mat3ds& s = FEstrain;
+							// The virtual gradient is a test field; its determinant need not be positive.
+							mat3ds s = pt.Strain();
 
 
-							if (::std::abs(pt.m_J) > 1e-10 && pt.m_J<0)
-							{
-								int pweoido2ke233eo = 0;
-
-							}
 
 							if (j == 0)
 							{
@@ -1638,15 +1505,14 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 							mat3ds stress_true(stressArray[index_timestep][j][0] - stressArray[0][j][0], stressArray[index_timestep][j][1] - stressArray[0][j][1], stressArray[index_timestep][j][2] - stressArray[0][j][2], stressArray[index_timestep][j][3] - stressArray[0][j][3], stressArray[index_timestep][j][4] - stressArray[0][j][4], stressArray[index_timestep][j][5] - stressArray[0][j][5]);
 
-							true_internalVirtualWork[index_timestep][index_vf] += stress_true.dotdot(s) * currentJc;
+							true_internalVirtualWork[index_timestep][index_vf] += stress_true.dotdot(s) * integrationDetJ;
 
-							double density = dynamic_cast<FESolidMaterial*>(pmat)->Density(mp);
-							density = 1;
+							const double density = 1.0;
 							// acceleration
 							vec3d a = solidElement.Evaluate(a0, n);
 							vec3d u = solidElement.Evaluate(u0, n);
 
-							double vvw = density * (a * u) * Jc;
+							double vvw = density * (a * u) * integrationDetJ;
 
 							vvw_elements[index_seId][n] = vvw;
 						}
@@ -1720,7 +1586,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 										vec3d rv[FEElement::MAX_NODES];
 										for (int i = 0; i < element.Nodes(); ++i)
 										{
-											rv[i] = rv_[i] - re[i];										
+											rv[i] = rv_[i] - re[i];
 										}
 
 
@@ -1768,12 +1634,12 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 												auto disp = m_rt - m_r0;
 												surfaceelement_node_disp_array[index_timestep][index_vf][i] = vec3d_to_vector(disp);
-												
+
 											}
 											if (index_vf == 0)
 											{
 												surfaceelement_pressure[index_timestep] = vec3d_to_vector(np * P);
-												
+
 											}
 											// 计算面积
 											//if (index_vf == 0)
@@ -1789,7 +1655,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 														break;
 													}
 
-													case 4: 
+													case 4:
 													{
 														// 四边形
 														auto& nodeA = mesh.Node(element.m_node[0]);
@@ -1800,7 +1666,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 														break;
 													}
 
-													default: 
+													default:
 														// 处理不支持的单元类型或错误情况
 														surfaceelement_area[index_timestep][index_vf] = 0.0; // 或抛出异常
 														break;
@@ -1965,7 +1831,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 								{
 									auto& node = *nset.Node(i);
 									int nodeid = node.GetID()-1;
-									
+
 									auto m_r0 = node.m_r0;
 									auto m_rt = node.m_rt;
 
@@ -1975,7 +1841,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 									if (::std::find(solution_node_id_list.begin(), solution_node_id_list.end(), nodeid) != solution_node_id_list.end())
 									{
 										// get the nodal values
-										
+
 										vec3d nF = { nodalforceArray[index_timestep][i][0],nodalforceArray[index_timestep][i][1],nodalforceArray[index_timestep][i][2] };
 										vec3d inF = { initialNodalForce[i][0],initialNodalForce[i][1],initialNodalForce[i][2] };
 
@@ -2038,7 +1904,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 										auto temp_true_element = element.m_elem[0];
 										FEElement* true_element = get_FEElement_p_version(temp_true_element);
-										
+
 
 										int element_index = mesh.FindElementIndexFromID(true_element->GetID());
 										::std::vector<::std::reference_wrapper<FENode>> nodes;
@@ -2298,12 +2164,12 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 			L_StressPK2_withJc_LaplaceTransform(timeArray, task, fem, solution_elementsDomainID, truedeformationGradientArray, trueJArray, Sepk2_dotdot_vStrain, virtualstrainArrayV);
 
 			fs = L_fs(externalVirtualWork, timeArray, task, fem, solution_elementsDomainID, truedeformationGradientArray, trueJArray, virtualstrainArrayV);
-		
+
 			if (task->configure.isTalbotLaplaceVFM_s == true)
 			{
 				ft = inv_ft(fs, timeArray);
 			}
-			
+
 		}
 #pragma endregion
 
@@ -2382,7 +2248,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					for (int j = 0; j < trueJArray[index_timestep][i].size(); j++)
 					{
 						trueJArray_file << ::std::setprecision(12) << trueJArray[index_timestep][i][j];
-						
+
 						if (i != trueJArray[index_timestep].size() - 1 || j != trueJArray[index_timestep][i].size() - 1)
 						{
 							trueJArray_file << ",";
@@ -2434,7 +2300,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					{
 						surfaceelement_pressure_file << ",";
 					}
-					
+
 				}
 				if (index_timestep != surfaceelement_pressure.size() - 1)
 				{
@@ -2482,7 +2348,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 			for (size_t index_timestep = 0; index_timestep < virtualstrainArrayV.size(); ++index_timestep) {
 				const auto& dimension1 = virtualstrainArrayV[index_timestep];
-					
+
 				std::vector<std::vector<mat3ds>> extractedDim1;
 
 				for (size_t index_vf = 0; index_vf < dimension1.size(); ++index_vf) {
@@ -2580,7 +2446,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					{
 						externalVirtualWork_file << ",";
 					}
-					
+
 				}
 				if (index_timestep != externalVirtualWork.size() - 1)
 				{
@@ -2602,7 +2468,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					{
 						true_internalVirtualWork_file << ",";
 					}
-					
+
 				}
 				if (index_timestep != true_internalVirtualWork.size() - 1)
 				{
@@ -2673,7 +2539,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				L_externalVirtualWork_LaplcaeTransform(externalVirtualWork, externalVirtualWork_laplace, timeArray, task);
 				L_StressPK2_withJc_LaplaceTransform(timeArray, task, fem, solution_elementsDomainID, truedeformationGradientArray, trueJArray, Sepk2_dotdot_vStrain, virtualstrainArrayV);
 				fs = L_fs(externalVirtualWork, timeArray, task, fem, solution_elementsDomainID, truedeformationGradientArray, trueJArray, virtualstrainArrayV);
-				
+
 				if (task->configure.isTalbotLaplaceVFM_s == true)
 				{
 					ft = inv_ft(fs, timeArray);
@@ -2788,7 +2654,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 		return gs;
 		};
- 
+
     task->configure.optim_function_tau__E_gamma = [&fem, &params](double p_E, double p_g) {
 		//double p_E = ps[0];
 		//double p_g = ps[1];
@@ -2800,7 +2666,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		};
 
 	task->configure.optim_function_E_gamma_tau = [&fem, &params](const ::std::vector<double>& ps) {
-		
+
 		double p_E = ps[0];
 		double p_g = ps[1];
 		double p_t = ps[2];

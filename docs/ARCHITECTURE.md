@@ -33,6 +33,27 @@ boundaries rather than a promise to remove FEBio as the runtime.
 The source list is explicit in `FEBio_VFM_Task/CMakeLists.txt`; adding a new
 translation unit requires adding it to that list.
 
+## Jacobian semantics
+
+The callback uses several determinants with different meanings. They must not
+share one implicit validity rule:
+
+- **Reference mapping Jacobian**: inverted by `domain_init`; it must be finite
+  and positive under the current element-orientation convention.
+- **Physical deformation determinant** `det(F)`: passed to FEBio constitutive
+  calculations and stress conversions; it must be finite and positive.
+- **Physical integration Jacobian**: the actual current-configuration Gauss
+  integration measure stored in `trueJArray`; both internal and volume virtual
+  work use this measure.
+- **Virtual-field determinant**: belongs to the test-field mapping used to form
+  virtual strain. It is not inverted and is not a physical deformation, so a
+  finite negative or zero value is admissible.
+
+`PhysicalDeformationGradient` exposes the physical integration Jacobian.
+`VirtualFieldGradient` intentionally does not expose a mapping Jacobian, which
+prevents the virtual mapping from being reused accidentally as an integration
+measure. The shared policy is covered by the `jacobian_policy` unit test.
+
 ## Refactoring constraints
 
 - Structural changes must start from `develop` on a dedicated branch.
