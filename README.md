@@ -30,9 +30,10 @@ executed commercial license for project-controlled material. It is not an MIT
 continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
 or validated as part of this source release.
 
-The current development version is `1.1.1`. It disables the legacy in-process
-`NLpot_0` optimization path after the Python optimization callback, preventing
-the duplicate optimizer path and its subsequent process crash.
+The current development version is `1.1.2`. It propagates FEBio solve and
+post-processing failures, keeps timestep capture state per task instance, and
+uses Python `BeforeOptim` as the required optimization entry point. The legacy
+in-process `NLpot_0` optimizer remains disabled.
 
 ## Licensing
 

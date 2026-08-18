@@ -389,15 +389,31 @@ bool VFMTask::Run()
 	//fem.AddCallback(read_solved_information, CB_SOLVED, (void*)this);
 
 
-	bool femsolveresult = true;
+	bool fem_solve_result = true;
 	if (this->configure.isRead_FEMresult_fromsavefile == false)
 	{
-		bool femsolveresult = fem.Solve();
+		fem_solve_result = fem.Solve();
 	}
 
-	read_solved_information(&fem, CB_SOLVED, (void*)this); // no need callback
+	if (!fem_solve_result && !this->configure.allow_failed_solve_postprocessing)
+	{
+		feLogError("Skipping VFM post-processing because the FEBio solve failed.\n");
+		return false;
+	}
 
-	return femsolveresult;
+	bool postprocessing_result = false;
+	try
+	{
+		postprocessing_result = read_solved_information(&fem, CB_SOLVED, (void*)this);
+	}
+	catch (const std::exception& e)
+	{
+		const std::string message = "VFM post-processing failed: " + std::string(e.what()) + "\n";
+		feLogError(message.c_str());
+		return false;
+	}
+
+	return fem_solve_result && postprocessing_result;
 }
 
 //void VFMTask_configure::add_vf_u_function(pybind11::object callback)
