@@ -19,6 +19,7 @@ PYBIND11_EMBEDDED_MODULE(VFMTask_pybind, m) {
 		.def_readwrite("isRead_FEMresult_fromsavefile", &VFMTask_configure::isRead_FEMresult_fromsavefile)
 		.def_readwrite("isReadfromsaveOptimfunc", &VFMTask_configure::isReadfromsaveOptimfunc)
 		.def_readwrite("isSetDisplacmentAndPressure", &VFMTask_configure::isSetDisplacmentAndPressure)
+		.def_readwrite("allow_failed_solve_postprocessing", &VFMTask_configure::allow_failed_solve_postprocessing)
 		.def_readwrite("FEBio_dump_path", &VFMTask_configure::FEBio_dump_path)
 		.def_readwrite("Optim_dump_path", &VFMTask_configure::Optim_dump_path)
 		.def_readwrite("isReadfromfeblogfile", &VFMTask_configure::isReadfromfeblogfile)
