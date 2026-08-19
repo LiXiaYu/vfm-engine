@@ -30,12 +30,12 @@ executed commercial license for project-controlled material. It is not an MIT
 continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
 or validated as part of this source release.
 
-The current source release is `1.1.2`. It propagates FEBio solve and
-post-processing failures, keeps timestep capture state per task instance, and
-uses Python `BeforeOptim` as the required optimization entry point. The legacy
-in-process `NLpot_0` optimizer remains disabled. Post-1.1.2 development is
-decomposing the callback implementation into behavior-preserving modules before
-further numerical changes are made.
+The current source release is `1.1.3`. It separates FEBio execution from result
+buffer reuse: `run_febio_solve` controls only whether `FEModel::Solve()` runs,
+while `reuse_saved_result_buffer` controls only whether an existing mapped result
+buffer is reused. This allows Python-configured VFM data to run after FEBio model
+initialization without executing an unnecessary finite-element solve. The legacy
+in-process `NLpot_0` optimizer remains disabled.
 
 ## Licensing
 

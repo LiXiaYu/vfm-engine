@@ -15,16 +15,12 @@ The case applies DIC-derived displacements to an FEBio 4 model and runs the VFM 
 ## Status
 
 This case has an accepted numerical baseline for the deterministic Python
-`elastic_E` optimization. VFM-engine 1.1.1 disables the legacy `NLpot_0` path,
-and VFM-engine 1.1.2 hardens the task lifecycle and callback error handling. The
-generated metrics still match the baseline without the previous plugin crash.
-The failed FEBio solve is now propagated as a task failure. The case remains a
-**candidate validation** overall because the FEBio nonlinear solve reaches its
-maximum retry limit and terminates with failed convergence. A trial state also
-reports negative Jacobians; this is an intermediate solver diagnostic, not the
-final termination reason. It is also separate from VFM-engine's virtual-field
-determinant, which may be negative when no inverse or physical constitutive
-evaluation depends on it.
+`elastic_E` optimization. VFM-engine 1.1.3 runs it as a pure VFM validation:
+FEBio still parses and initializes the model, materials, and DataStore records,
+but `FEModel::Solve()` is not called. A new result buffer is allocated and the
+existing Python displacement-and-pressure setter populates it. Run
+`20260819-113318` used FEBio 4.13.0 and plugin 1.1.3, explicitly confirmed that
+the solve was skipped, and reproduced the reviewed metrics.
 
 ## Run
 
@@ -40,4 +36,5 @@ The runner:
 2. locates the installed FEBio executable and the current VFM plugin build;
 3. creates an isolated directory below `out/validation/`;
 4. runs FEBio with this case's VFM configuration;
-5. checks generated metrics when a reviewed expected baseline exists.
+5. confirms that the configured FEBio solve was skipped; and
+6. checks generated metrics when a reviewed expected baseline exists.

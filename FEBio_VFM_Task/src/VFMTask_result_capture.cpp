@@ -133,12 +133,13 @@ bool initialize_result_storage(FEModel* fem, VFMTask* task)
 
 	size_t filesize = time_size + displacement_size + stress_size + nodalforce_size + constraintpressure_size + constraintactivate_size;
 
-	if (task->configure.isRead_FEMresult_fromsavefile == false)
+	if (!task->configure.reuse_saved_result_buffer)
 	{
-		write_to_log_2(fem, "create new dump file...\n", outFile);
-		// Create a new dump when saved results are not being read.
+		write_to_log_2(fem, "create new result buffer...\n", outFile);
+		// Start with a new buffer. Solve callbacks or the configured setters can
+		// populate it later without changing its storage format.
 		if (std::filesystem::exists(task->dumpfile)) {
-			write_to_log_2(fem, "dump file exist, remove it: " + task->dumpfile + "\n", outFile);
+			write_to_log_2(fem, "result buffer exists, replace it: " + task->dumpfile + "\n", outFile);
 			std::filesystem::remove(task->dumpfile);
 		}
 		std::ofstream ofs(task->dumpfile, std::ios::binary | std::ios::trunc);
@@ -148,23 +149,12 @@ bool initialize_result_storage(FEModel* fem, VFMTask* task)
 	}
 	else
 	{
-		write_to_log_2(fem, "read from savefile dump...\n", outFile);
-		// Ensure the requested saved-result dump exists.
+		write_to_log_2(fem, "reuse saved result buffer...\n", outFile);
+		// Reuse means that an existing buffer is required. Whether Solve runs is
+		// controlled independently by run_febio_solve.
 		if (!std::filesystem::exists(task->dumpfile)) {
-			write_to_log_2(fem, "dump file not exist: " + task->dumpfile + "\n", outFile);
-			if (task->configure.isSetDisplacmentAndPressure == true)
-			{
-				// Create the dump when saved displacement and pressure will be populated.
-				write_to_log_2(fem, "since isSetDisplacmentAndPressure is true, create new dump file: " + task->dumpfile + "\n", outFile);
-				std::ofstream ofs(task->dumpfile, std::ios::binary | std::ios::trunc);
-				ofs.seekp(filesize - 1);
-				ofs.write("", 1);
-				ofs.close();
-			}
-			else
-			{
-				throw std::runtime_error("dump file not exist: " + task->dumpfile);
-			}
+			write_to_log_2(fem, "saved result buffer does not exist: " + task->dumpfile + "\n", outFile);
+			throw std::runtime_error("saved result buffer does not exist: " + task->dumpfile);
 		}
 
 		//size_t existing_filesize = std::filesystem::file_size(task->dumpfile);
@@ -221,7 +211,7 @@ bool everytimestep_withinited_savedata(FEModel* fem, unsigned int when, void* pd
 		return false;
 	}
 
-	if (task->configure.isRead_FEMresult_fromsavefile == false)
+	if (!task->configure.reuse_saved_result_buffer)
 	{
 		if (task->recorded_steps >= task->total_steps)
 		{

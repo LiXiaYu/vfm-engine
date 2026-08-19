@@ -184,7 +184,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 #pragma region readsavefile_dump
 
 		//write_to_log_2(fem, "read from savefile dump...\n", outFile);
-		//if (task->configure.isRead_FEMresult_fromsavefile == true)
+		//if (task->configure.reuse_saved_result_buffer == true)
 		//{
 		//	DumpFile dumpfile(*fem);
 		//	dumpfile.Open(task->dumpfile.c_str());

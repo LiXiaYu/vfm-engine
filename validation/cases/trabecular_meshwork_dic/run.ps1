@@ -137,6 +137,17 @@ if ($febioExitCode -ne 0 -or $febioReportedErrorTermination) {
     throw "FEBio failed with exit code $febioExitCode. See $runLog"
 }
 
+$febioSolveSkipped = Select-String `
+    -LiteralPath $runLog `
+    -Pattern "Skipping FEBio solve by configuration." `
+    -SimpleMatch `
+    -Quiet
+
+if (-not $febioSolveSkipped) {
+    Get-Content -LiteralPath $runLog -Tail 80
+    throw "The validation case did not confirm that the FEBio solve was skipped."
+}
+
 & $pythonExe $validator --actual $metricsPath --expected $expectedMetrics
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
