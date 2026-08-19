@@ -22,7 +22,7 @@ FECORE_EXPORT void PluginCleanup()
 
 FECORE_EXPORT void GetPluginVersion(int& major, int& minor, int& patch)
 {
-    major = 1;
-    minor = 1; // mmap
-    patch = 2;
+    major = VFM_ENGINE_VERSION_MAJOR;
+    minor = VFM_ENGINE_VERSION_MINOR;
+    patch = VFM_ENGINE_VERSION_PATCH;
 }

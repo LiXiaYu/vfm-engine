@@ -89,7 +89,10 @@ target_link_libraries(FEBio_VFM_Task
         ${FEBIO_LINK_LIBS}
         OpenMP::OpenMP_CXX)
 target_compile_definitions(FEBio_VFM_Task PRIVATE
-    "$<$<CONFIG:Debug>:DEBUG>")
+    "$<$<CONFIG:Debug>:DEBUG>"
+    VFM_ENGINE_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    VFM_ENGINE_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    VFM_ENGINE_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 target_compile_options(FEBio_VFM_Task PRIVATE
     "$<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-O3>")
 

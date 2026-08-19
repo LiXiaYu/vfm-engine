@@ -19,12 +19,11 @@ The previous `0xC0000409` plugin crash no longer occurs. Version 1.1.2 preserves
 the generated metrics while propagating the failed FEBio solve as a task failure.
 The Jacobian-semantics refactor reproduced the same metrics in run
 `20260818-190423`; its explicit baseline comparison passed.
-The complete case remains a candidate because the FEBio nonlinear solve reaches
-its maximum retry limit and terminates with failed convergence. One trial state
-also reports negative Jacobians, but that report is not the final termination
-reason and must not be conflated with VFM-engine's Jacobian rules. In particular,
-a virtual test-field determinant may be negative because that mapping is not a
-physical deformation and is not used as the integration measure.
+Version 1.1.3 reproduced the same metrics in clean run `20260819-113318` after
+separating `run_febio_solve` from `reuse_saved_result_buffer`. That run created a
+new result buffer, populated it through the existing Python setter, and completed
+without calling `FEModel::Solve()`. The previous nonlinear nonconvergence and its
+trial-state diagnostics therefore do not participate in the current validation.
 
 The tolerances allow small floating-point and optimizer differences while keeping
 the optimized modulus tightly constrained. Because the objective value is close

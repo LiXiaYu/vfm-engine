@@ -16,7 +16,24 @@ PYBIND11_EMBEDDED_MODULE(VFMTask_pybind, m) {
 		.def_readwrite("bpm", &VFMTask_configure::bpm)
 		.def_readwrite("start_index", &VFMTask_configure::start_index)
 		.def_readwrite("end_index", &VFMTask_configure::end_index)
-		.def_readwrite("isRead_FEMresult_fromsavefile", &VFMTask_configure::isRead_FEMresult_fromsavefile)
+		.def_readwrite("run_febio_solve", &VFMTask_configure::run_febio_solve)
+		.def_readwrite("reuse_saved_result_buffer", &VFMTask_configure::reuse_saved_result_buffer)
+		.def_property("isRead_FEMresult_fromsavefile",
+			[](const VFMTask_configure& cfg) {
+				return cfg.reuse_saved_result_buffer;
+			},
+			[](VFMTask_configure& cfg, bool value) {
+				if (PyErr_WarnEx(
+					PyExc_DeprecationWarning,
+					"isRead_FEMresult_fromsavefile is deprecated; use run_febio_solve and reuse_saved_result_buffer",
+					1) < 0)
+				{
+					throw pybind11::error_already_set();
+				}
+				// Preserve the legacy coupled behavior only for old Python scripts.
+				cfg.reuse_saved_result_buffer = value;
+				cfg.run_febio_solve = !value;
+			})
 		.def_readwrite("isReadfromsaveOptimfunc", &VFMTask_configure::isReadfromsaveOptimfunc)
 		.def_readwrite("isSetDisplacmentAndPressure", &VFMTask_configure::isSetDisplacmentAndPressure)
 		.def_readwrite("allow_failed_solve_postprocessing", &VFMTask_configure::allow_failed_solve_postprocessing)
