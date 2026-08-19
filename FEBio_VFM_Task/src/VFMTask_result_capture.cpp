@@ -13,9 +13,8 @@
 #include <system_error>
 #include <tuple>
 #include <vector>
-bool read_inited_information(FEModel* fem, unsigned int when, void* pd)
+bool initialize_result_storage(FEModel* fem, VFMTask* task)
 {
-	VFMTask* task = (VFMTask*)pd;
 	task->recorded_steps = 0;
 
 	::std::ofstream outFile;
@@ -200,7 +199,7 @@ bool read_inited_information(FEModel* fem, unsigned int when, void* pd)
 	task->timeconstraintactivate = span2d<uint8_t>{ reinterpret_cast<uint8_t*>(base), task->total_steps, task->nconstraint };
 	base += constraintactivate_size;
 
-	return everytimestep_withinited_savedata(fem, when, pd);
+	return everytimestep_withinited_savedata(fem, CB_INIT, task);
 }
 
 bool read_stepsolved_information(FEModel* fem, unsigned int when, void* pd)
