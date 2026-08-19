@@ -30,7 +30,7 @@ double domain_invjac0(FESolidDomain& domain, const FESolidElement& el, double Ji
 		+ J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
 
 	// make sure the determinant is positive
-	if (det <= 0) throw NegativeJacobian(el.GetID(), n + 1, det);
+	if (!vfm::is_admissible_jacobian(det, vfm::JacobianRole::ReferenceMapping)) throw NegativeJacobian(el.GetID(), n + 1, det);
 
 	// calculate the inverse jacobian
 	double deti = 1.0 / det;
@@ -50,8 +50,18 @@ double domain_invjac0(FESolidDomain& domain, const FESolidElement& el, double Ji
 	return det;
 }
 
-double domain_defgrad_GJ(FESolidDomain& domain, FESolidElement& el, mat3d& F, int n)
+namespace
 {
+struct EvaluatedDeformationGradient
+{
+	mat3d gradient;
+	double determinant;
+	double target_mapping_jacobian;
+};
+
+EvaluatedDeformationGradient evaluate_domain_deformation_gradient(FESolidDomain& domain, FESolidElement& el, int n)
+{
+	mat3d F;
 	// nodal points
 	vec3d r[FEElement::MAX_NODES];
 	domain.GetCurrentNodalCoordinates(el, r);
@@ -99,14 +109,29 @@ double domain_defgrad_GJ(FESolidDomain& domain, FESolidElement& el, mat3d& F, in
 		F[2][0] += GX * z; F[2][1] += GY * z; F[2][2] += GZ * z;
 	}
 
-	double D = F.det();
-	if (D <= 0) throw NegativeJacobian(el.GetID(), n, D, &el);
-
-	double Jc = F1.det();
-
-	return Jc;
+	return { F, F.det(), F1.det() };
+}
 }
 
+PhysicalDeformationGradient domain_physical_deformation_gradient(FESolidDomain& domain, FESolidElement& el, int n)
+{
+	auto evaluated = evaluate_domain_deformation_gradient(domain, el, n);
+	if (!vfm::is_admissible_jacobian(evaluated.determinant, vfm::JacobianRole::PhysicalDeformation))
+	{
+		throw NegativeJacobian(el.GetID(), n, evaluated.determinant, &el);
+	}
+	return { evaluated.gradient, evaluated.determinant, evaluated.target_mapping_jacobian };
+}
+
+VirtualFieldGradient domain_virtual_field_gradient(FESolidDomain& domain, FESolidElement& el, int n)
+{
+	auto evaluated = evaluate_domain_deformation_gradient(domain, el, n);
+	if (!vfm::is_admissible_jacobian(evaluated.determinant, vfm::JacobianRole::VirtualField))
+	{
+		throw NegativeJacobian(el.GetID(), n, evaluated.determinant, &el);
+	}
+	return { evaluated.gradient, evaluated.determinant };
+}
 void domain_init(FEMesh& mesh, FESolidElement& el, FESolidDomain& domain) {
 
 	// evaluate nodal coordinates

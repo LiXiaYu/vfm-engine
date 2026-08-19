@@ -265,7 +265,7 @@ bool VFMTask::Init(const char* szfile)
 	// create a save file
 	::std::filesystem::path outSavefilePath = std::filesystem::current_path() / (stemname + "_BMP" + ::std::to_string(static_cast<int>(this->configure.bpm)) + "_save.txt");
 	this->outSavefile = outSavefilePath.string();
-	if (this->configure.isRead_FEMresult_fromsavefile == false)
+	if (!this->configure.reuse_saved_result_buffer)
 	{
 		// create a save file
 		::std::ofstream outFile;
@@ -313,8 +313,6 @@ bool VFMTask::Init(const char* szfile)
 
 	FEModel& fem = *GetFEModel();
 	// from fem get the model's initial displacement
-
-	fem.AddCallback(read_inited_information, CB_INIT, (void*)this);
 
 	fem.AddCallback(read_stepsolved_information, CB_TIMESTEP_SOLVED, (void*)this);
 
@@ -370,8 +368,14 @@ bool VFMTask::Init(const char* szfile)
 	//	step.m_dt0 = step.m_dt0 * (120 / static_cast<int>(this->bmp)); // add time step
 	//}
 
-	// continue
-	return fem.Init();
+	// Initialize the FEBio model first so its DataStore records are complete.
+	// Result storage is then allocated explicitly before Run() can call Solve().
+	if (!fem.Init())
+	{
+		return false;
+	}
+
+	return initialize_result_storage(&fem, this);
 }
 
 
@@ -384,15 +388,17 @@ bool VFMTask::Run()
 	FEModel& fem = *GetFEModel();
 	// from fem get the model's initial displacement
 
-	//fem.AddCallback(read_inited_information, CB_INIT, (void*)this);
-
 	//fem.AddCallback(read_solved_information, CB_SOLVED, (void*)this);
 
 
 	bool fem_solve_result = true;
-	if (this->configure.isRead_FEMresult_fromsavefile == false)
+	if (this->configure.run_febio_solve)
 	{
 		fem_solve_result = fem.Solve();
+	}
+	else
+	{
+		feLog("Skipping FEBio solve by configuration.\n");
 	}
 
 	if (!fem_solve_result && !this->configure.allow_failed_solve_postprocessing)

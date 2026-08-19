@@ -17,8 +17,13 @@ It was reproduced by VFM-engine 1.1.1 in run `20260818-112424` after the legacy
 `20260818-150528` after task lifecycle and callback error handling were hardened.
 The previous `0xC0000409` plugin crash no longer occurs. Version 1.1.2 preserves
 the generated metrics while propagating the failed FEBio solve as a task failure.
-The complete case remains a candidate because the FEBio model still reports
-failed convergence, negative Jacobians, and error termination.
+The Jacobian-semantics refactor reproduced the same metrics in run
+`20260818-190423`; its explicit baseline comparison passed.
+Version 1.1.3 reproduced the same metrics in clean run `20260819-113318` after
+separating `run_febio_solve` from `reuse_saved_result_buffer`. That run created a
+new result buffer, populated it through the existing Python setter, and completed
+without calling `FEModel::Solve()`. The previous nonlinear nonconvergence and its
+trial-state diagnostics therefore do not participate in the current validation.
 
 The tolerances allow small floating-point and optimizer differences while keeping
 the optimized modulus tightly constrained. Because the objective value is close

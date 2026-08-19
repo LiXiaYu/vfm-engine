@@ -30,9 +30,11 @@ executed commercial license for project-controlled material. It is not an MIT
 continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
 or validated as part of this source release.
 
-The current development version is `1.1.2`. It propagates FEBio solve and
-post-processing failures, keeps timestep capture state per task instance, and
-uses Python `BeforeOptim` as the required optimization entry point. The legacy
+The current source release is `1.1.3`. It separates FEBio execution from result
+buffer reuse: `run_febio_solve` controls only whether `FEModel::Solve()` runs,
+while `reuse_saved_result_buffer` controls only whether an existing mapped result
+buffer is reused. This allows Python-configured VFM data to run after FEBio model
+initialization without executing an unnecessary finite-element solve. The legacy
 in-process `NLpot_0` optimizer remains disabled.
 
 ## Licensing
@@ -89,6 +91,8 @@ or corporate CLA before merge.
   dependencies.
 - `CMakePresets.json`, `vcpkg.json`, and `vcpkg-configuration.json` describe the
   current CMake and vcpkg configuration.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) records the implemented runtime
+  flow and the current module responsibilities.
 
 ## Current technical dependencies
 

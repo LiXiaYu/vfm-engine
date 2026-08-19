@@ -32,12 +32,11 @@ def InitVFMTask(
     configure = VFMTask_pybind.VFMTask_configure()
 
     configure.bpm = 15  # Retained from the legacy demo; currently ineffective.
-    configure.isRead_FEMresult_fromsavefile = False
+    configure.run_febio_solve = False
+    configure.reuse_saved_result_buffer = False
     configure.isReadfromsaveOptimfunc = False
     configure.isSetDisplacmentAndPressure = True
-    # This legacy candidate intentionally checks post-processing output even
-    # though its FEBio solve currently reports error termination.
-    configure.allow_failed_solve_postprocessing = True
+    configure.allow_failed_solve_postprocessing = False
     configure.isLaplaceVFM = False
     configure.isSetNewLaplaceVFMs = False
     configure.isTalbotLaplaceVFM_s = False

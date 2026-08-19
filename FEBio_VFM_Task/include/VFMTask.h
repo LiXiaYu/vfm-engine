@@ -15,7 +15,8 @@ public:
     double bpm = 0.0;
     int start_index = 0;
     int end_index = 0;
-    bool isRead_FEMresult_fromsavefile = false;
+    bool run_febio_solve = true;
+    bool reuse_saved_result_buffer = false;
     bool isReadfromsaveOptimfunc = false;
     bool isSetDisplacmentAndPressure = false;
     bool allow_failed_solve_postprocessing = false;

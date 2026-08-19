@@ -63,9 +63,20 @@ if(OPENMP_FOUND)
     message(STATUS "OpenMP found")
 endif()
 
-aux_source_directory("./src" SRC_DIR)
+set(FEBIO_VFM_TASK_SOURCES
+    src/common_FEBio.cpp
+    src/common_pybind.cpp
+    src/FEBio_refunction.cpp
+    src/FEBio_VFM_Task.cpp
+    src/optim.cpp
+    src/VFMTask.cpp
+    src/VFMTask_callback.cpp
+    src/VFMTask_debug_output.cpp
+    src/VFMTask_laplace.cpp
+    src/VFMTask_pybind.cpp
+    src/VFMTask_result_capture.cpp)
 
-add_library(FEBio_VFM_Task SHARED ${SRC_DIR})
+add_library(FEBio_VFM_Task SHARED ${FEBIO_VFM_TASK_SOURCES})
 target_include_directories(FEBio_VFM_Task
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -78,7 +89,10 @@ target_link_libraries(FEBio_VFM_Task
         ${FEBIO_LINK_LIBS}
         OpenMP::OpenMP_CXX)
 target_compile_definitions(FEBio_VFM_Task PRIVATE
-    "$<$<CONFIG:Debug>:DEBUG>")
+    "$<$<CONFIG:Debug>:DEBUG>"
+    VFM_ENGINE_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    VFM_ENGINE_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    VFM_ENGINE_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 target_compile_options(FEBio_VFM_Task PRIVATE
     "$<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-O3>")
 
