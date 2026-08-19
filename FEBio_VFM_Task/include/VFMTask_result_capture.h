@@ -1,8 +1,9 @@
 #pragma once
 
 class FEModel;
+class VFMTask;
 
-bool read_inited_information(FEModel* fem, unsigned int when, void* pd);
+bool initialize_result_storage(FEModel* fem, VFMTask* task);
 
 bool read_stepsolved_information(FEModel* fem, unsigned int when, void* pd);
 

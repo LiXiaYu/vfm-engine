@@ -314,8 +314,6 @@ bool VFMTask::Init(const char* szfile)
 	FEModel& fem = *GetFEModel();
 	// from fem get the model's initial displacement
 
-	fem.AddCallback(read_inited_information, CB_INIT, (void*)this);
-
 	fem.AddCallback(read_stepsolved_information, CB_TIMESTEP_SOLVED, (void*)this);
 
 	//fem.AddCallback(read_solved_information, CB_SOLVED, (void*)this);
@@ -370,8 +368,14 @@ bool VFMTask::Init(const char* szfile)
 	//	step.m_dt0 = step.m_dt0 * (120 / static_cast<int>(this->bmp)); // add time step
 	//}
 
-	// continue
-	return fem.Init();
+	// Initialize the FEBio model first so its DataStore records are complete.
+	// Result storage is then allocated explicitly before Run() can call Solve().
+	if (!fem.Init())
+	{
+		return false;
+	}
+
+	return initialize_result_storage(&fem, this);
 }
 
 
@@ -383,8 +387,6 @@ bool VFMTask::Run()
 	// displacement at the initial timestep of the last two cycles
 	FEModel& fem = *GetFEModel();
 	// from fem get the model's initial displacement
-
-	//fem.AddCallback(read_inited_information, CB_INIT, (void*)this);
 
 	//fem.AddCallback(read_solved_information, CB_SOLVED, (void*)this);
 
