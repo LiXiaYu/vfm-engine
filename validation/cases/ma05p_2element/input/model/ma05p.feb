@@ -4,14 +4,14 @@ Two-element forward/inverse validation model.
 
 The left element is a FEBio viscoelastic neo-Hookean material with known
 parameters E=0.3, gamma=g1=8, and tau=t1=1.  The right element is a known
-elastic support material.  Ten pressure cycles are solved; VFM uses the final
-cycle so that the transient response has decayed before parameter recovery.
+elastic support material.  Fifty pressure cycles are solved to reach a closed
+periodic response; VFM uses only the final cycle for parameter recovery.
 -->
 <febio_spec version="4.0">
 	<Module type="solid"/>
 	<Control>
 		<analysis>STATIC</analysis>
-		<time_steps>800</time_steps>
+		<time_steps>4000</time_steps>
 		<step_size>0.05</step_size>
 		<plot_zero_state>0</plot_zero_state>
 		<plot_level>PLOT_MAJOR_ITRS</plot_level>
