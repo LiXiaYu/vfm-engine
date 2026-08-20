@@ -2491,7 +2491,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 		DumpFile dumpfile(*fem);
 		::std::string fundump_path = task->dumpfile + ".fundump";
-		if (task->configure.Optim_dump_path.empty() != false && task->configure.Optim_dump_path != "")
+		if (!task->configure.Optim_dump_path.empty())
 		{
 			fundump_path = task->configure.Optim_dump_path;
 		}
@@ -2526,7 +2526,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 		{
 			DumpFile dumpfile(*fem);
 			::std::string fundump_path = task->dumpfile + ".fundump";
-			if (task->configure.Optim_dump_path.empty() != false && task->configure.Optim_dump_path != "")
+			if (!task->configure.Optim_dump_path.empty())
 			{
 				fundump_path = task->configure.Optim_dump_path;
 			}
