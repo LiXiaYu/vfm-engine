@@ -120,7 +120,12 @@ PhysicalDeformationGradient domain_physical_deformation_gradient(FESolidDomain& 
 	{
 		throw NegativeJacobian(el.GetID(), n, evaluated.determinant, &el);
 	}
-	return { evaluated.gradient, evaluated.determinant, evaluated.target_mapping_jacobian };
+	const double integrationWeight = el.GaussWeights()[n];
+	return {
+		evaluated.gradient,
+		evaluated.determinant,
+		evaluated.target_mapping_jacobian * integrationWeight
+	};
 }
 
 VirtualFieldGradient domain_virtual_field_gradient(FESolidDomain& domain, FESolidElement& el, int n)
