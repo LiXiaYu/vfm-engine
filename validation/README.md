@@ -15,8 +15,8 @@ Generated files are written below `out/validation/`, which is excluded from Git.
 ## Cases
 
 - `trabecular_meshwork_dic`: prescribed-field elastic identification.
-- `ma05p_2element`: FEBio forward solve followed by transient viscoelastic VFM
-  identification and parameter-recovery checks.
+- `ma05p_2element`: FEBio forward solve to periodic steady state followed by
+  final-cycle `optim_function_T` identification and parameter-recovery checks.
 
 ## Environment
 

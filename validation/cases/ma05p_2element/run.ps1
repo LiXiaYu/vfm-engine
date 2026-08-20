@@ -98,6 +98,12 @@ $env:PYTHONPATH = ($pythonInfo.site_packages -join [IO.Path]::PathSeparator)
 $env:VFM_VALIDATION_METRICS = $metricsPath
 $env:VFM_VALIDATION_SEED = "20260820"
 
+# fun_for_optim_T currently accumulates the multi-virtual-field loss into one
+# shared scalar inside an OpenMP loop.  Keep this validation deterministic until
+# that core reduction is fixed without altering the legacy source encoding.
+$previousOmpNumThreads = $env:OMP_NUM_THREADS
+$env:OMP_NUM_THREADS = "1"
+
 $febioArguments = @(
     "-i", $runModel,
     "-dump",
@@ -118,6 +124,11 @@ try {
 }
 finally {
     Pop-Location
+    if ($null -eq $previousOmpNumThreads) {
+        Remove-Item Env:OMP_NUM_THREADS -ErrorAction SilentlyContinue
+    } else {
+        $env:OMP_NUM_THREADS = $previousOmpNumThreads
+    }
 }
 
 $febioReportedErrorTermination = Select-String `

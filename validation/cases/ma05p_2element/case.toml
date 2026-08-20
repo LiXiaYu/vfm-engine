@@ -1,5 +1,5 @@
 name = "ma05p_2element"
-title = "MA05P two-element viscoelastic forward/inverse validation"
+title = "MA05P final-cycle periodic viscoelastic validation"
 status = "validated"
 model_spec_version = "4.0"
 plugin_sdk_version = "4.13"
@@ -8,8 +8,10 @@ vfm_script = "scripts/vfm_config.py"
 baseline_established = true
 workflow = "febio_forward_solve_then_vfm_inverse"
 period_seconds = 4.0
-solved_cycles = 10
-selected_cycles = 10
+solved_cycles = 50
+selected_cycles = 1
+cycle_selection = "final_complete_cycle"
+constitutive_objective = "optim_function_T"
 
 [known_parameters]
 E = 0.3
