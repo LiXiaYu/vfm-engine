@@ -1,0 +1,21 @@
+name = "ma05p_2element"
+title = "MA05P two-element viscoelastic forward/inverse validation"
+status = "validated"
+model_spec_version = "4.0"
+plugin_sdk_version = "4.13"
+model = "input/model/ma05p.feb"
+vfm_script = "scripts/vfm_config.py"
+baseline_established = true
+workflow = "febio_forward_solve_then_vfm_inverse"
+period_seconds = 4.0
+solved_cycles = 10
+selected_cycles = 10
+
+[known_parameters]
+E = 0.3
+gamma = 8.0
+tau = 1.0
+
+[acceptance]
+maximum_parameter_relative_error = 0.05
+maximum_virtual_work_relative_l1 = 0.001

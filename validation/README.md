@@ -12,6 +12,12 @@ This directory contains small, reusable validation cases for the numerical and p
 
 Generated files are written below `out/validation/`, which is excluded from Git.
 
+## Cases
+
+- `trabecular_meshwork_dic`: prescribed-field elastic identification.
+- `ma05p_2element`: FEBio forward solve followed by transient viscoelastic VFM
+  identification and parameter-recovery checks.
+
 ## Environment
 
 Validation dependencies are managed with `uv` using `pyproject.toml` and `uv.lock`. The current plugin embeds Python 3.13, so the validation environment is constrained to Python 3.13 as well.
