@@ -1735,7 +1735,8 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 											int temp_debug_omp_index_timestep = index_timestep;
 
 
-											double temp_debug_omp_evw_surface = t * pos * J;
+											const double integration_weight = element.GaussWeights()[n];
+											double temp_debug_omp_evw_surface = t * pos * J * integration_weight;
 
 											// correct with stress
 											double weight_correct = 1;// 1.0 / (10000 * ::std::abs(P) + 0.01);
@@ -2076,7 +2077,8 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 												int temp_debug_omp_index_timestep = index_timestep;
 
 
-												double temp_debug_omp_evw_surface = t * pos * J;
+												const double integration_weight = element.GaussWeights()[n];
+												double temp_debug_omp_evw_surface = t * pos * J * integration_weight;
 
 												// correct with stress
 												double weight_correct = 1;// 1.0 / (10000 * ::std::abs(P) + 0.01);

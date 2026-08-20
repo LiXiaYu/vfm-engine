@@ -6,6 +6,7 @@ struct PhysicalDeformationGradient
 {
 	mat3d gradient;
 	double determinant;
+	// Complete quadrature measure: mapping Jacobian times the Gauss weight.
 	double integration_jacobian;
 };
 

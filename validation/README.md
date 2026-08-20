@@ -17,6 +17,8 @@ Generated files are written below `out/validation/`, which is excluded from Git.
 - `trabecular_meshwork_dic`: prescribed-field elastic identification.
 - `ma05p_2element`: FEBio forward solve to periodic steady state followed by
   final-cycle `optim_function_T` identification and parameter-recovery checks.
+- `gauss_integration_solid_elements`: analytical volume and virtual-work
+  integration checks for `hex8`, `tet4`, `penta6`, and `pyra5` elements.
 
 ## Environment
 
@@ -34,4 +36,4 @@ Run all cases:
 .\validation\run-all.ps1
 ```
 
-A successful FEBio process is only an execution check. A case becomes a numerical validation only after its reviewed `expected/metrics.json` has been committed.
+A successful FEBio process is only an execution check. A case becomes a numerical validation only after its reviewed analytical expectations or reference metrics have been committed below `expected/`.
