@@ -73,6 +73,10 @@ PYBIND11_EMBEDDED_MODULE(VFMTask_pybind, m) {
 		.def_readwrite("optim_function_E_gamma_tau_invF", &VFMTask_configure::optim_function_E_gamma_tau_invF)
 		.def_readwrite("optim_function_elastic_E", &VFMTask_configure::optim_function_elastic_E)
 		.def_readwrite("optim_function_output_debug_info", &VFMTask_configure::optim_function_output_debug_info)
+		.def_readwrite("optim_function_output_iteration_stress", &VFMTask_configure::optim_function_output_iteration_stress)
+		.def_readwrite("optim_function_output_iteration_virtual_work", &VFMTask_configure::optim_function_output_iteration_virtual_work)
+		.def_readwrite("optim_function_parallel", &VFMTask_configure::optim_function_parallel)
+		.def_readwrite("optim_function_num_threads", &VFMTask_configure::optim_function_num_threads)
 		.def_readwrite("isSetNewLaplaceVFMs", &VFMTask_configure::isSetNewLaplaceVFMs)
 		.def_readwrite("LaplaceVFM_s", &VFMTask_configure::LaplaceVFM_s)
 		.def_readwrite("isTalbotLaplaceVFM_s", &VFMTask_configure::isTalbotLaplaceVFM_s);

@@ -1,0 +1,26 @@
+name = "ma05p_2element"
+title = "MA05P final-cycle periodic viscoelastic validation"
+status = "validated"
+model_spec_version = "4.0"
+plugin_sdk_version = "4.13"
+last_tested_plugin_version = "1.1.4"
+last_tested_runtime_version = "4.13.0"
+last_tested_date = "2026-08-21"
+model = "input/model/ma05p.feb"
+vfm_script = "scripts/vfm_config.py"
+baseline_established = true
+workflow = "febio_forward_solve_then_vfm_inverse"
+period_seconds = 4.0
+solved_cycles = 50
+selected_cycles = 1
+cycle_selection = "final_complete_cycle"
+constitutive_objective = "optim_function_T"
+
+[known_parameters]
+E = 0.3
+gamma = 8.0
+tau = 1.0
+
+[acceptance]
+maximum_parameter_relative_error = 0.05
+maximum_virtual_work_relative_l1 = 0.001

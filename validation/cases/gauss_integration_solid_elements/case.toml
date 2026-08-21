@@ -1,0 +1,16 @@
+name = "gauss_integration_solid_elements"
+title = "Gaussian integration measures across FEBio solid elements"
+status = "validated"
+model_spec_version = "4.0"
+plugin_sdk_version = "4.13"
+last_tested_plugin_version = "1.1.4"
+last_tested_runtime_version = "4.13.0"
+last_tested_date = "2026-08-21"
+baseline_established = true
+workflow = "synthetic_constant_stress_virtual_work"
+element_types = ["hex8", "tet4", "penta6", "pyra5"]
+surface_types = ["quad4", "tri3"]
+
+[acceptance]
+relative_tolerance = 1e-9
+absolute_tolerance = 1e-12
