@@ -82,6 +82,27 @@ or corporate CLA before merge.
 - Feature branches should normally merge into `develop` before integrated
   changes are promoted to `main`.
 
+## Optimization output and parallelism
+
+Optimization callbacks avoid per-evaluation CSV output by default. The Python
+configuration object exposes separate controls so large diagnostic files are
+only produced when they are explicitly needed:
+
+```python
+configure.optim_function_output_debug_info = False
+configure.optim_function_output_iteration_stress = False
+configure.optim_function_output_iteration_virtual_work = False
+
+configure.optim_function_parallel = True
+configure.optim_function_num_threads = 0  # OpenMP default; 1 forces serial
+```
+
+`optim_function_output_debug_info` controls one-time callback-initialization
+diagnostics. The two `output_iteration_*` options control stress and virtual-work
+CSV files written for every objective-function evaluation. Enabling them during
+a large parameter search can still create many files. Set these execution
+options in `InitVFMTask`, before the C++ optimization callbacks are created.
+
 ## Source layout
 
 - `FEBio_VFM_Task/include/` contains the public and internal C++ headers.

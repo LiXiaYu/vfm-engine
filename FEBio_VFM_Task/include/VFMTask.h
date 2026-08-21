@@ -66,7 +66,16 @@ public:
     ::std::function<double(const ::std::vector<double>&)> optim_function_Et;
     ::std::function<double(const ::std::vector<double>&)> optim_function_elastic_E;
 
+    // One-time diagnostic data prepared while the optimization callbacks are
+    // initialized. Per-evaluation data is controlled separately below.
     bool optim_function_output_debug_info = false;
+    bool optim_function_output_iteration_stress = false;
+    bool optim_function_output_iteration_virtual_work = false;
+
+    // OpenMP execution used inside the C++ objective functions. A thread count
+    // of zero selects the OpenMP runtime default; one forces serial execution.
+    bool optim_function_parallel = true;
+    int optim_function_num_threads = 0;
 
     bool isSetNewLaplaceVFMs = false;
     ::std::vector<::std::complex<double>> LaplaceVFM_s;
