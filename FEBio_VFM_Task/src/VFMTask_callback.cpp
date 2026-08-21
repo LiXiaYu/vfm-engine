@@ -2501,7 +2501,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 
 		dumpfile.Close();
 
-		params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info });
+		params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info, { task->configure.optim_function_output_iteration_stress, task->configure.optim_function_output_iteration_virtual_work, task->configure.optim_function_parallel, task->configure.optim_function_num_threads } });
 
 		::std::function<double(const ::std::vector<double>&)> fun = [&fem, &outFile, &params](const ::std::vector<double>& ps) {
 			double p_E = ps[0];
@@ -2548,7 +2548,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 				}
 			}
 
-			params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info });
+			params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info, { task->configure.optim_function_output_iteration_stress, task->configure.optim_function_output_iteration_virtual_work, task->configure.optim_function_parallel, task->configure.optim_function_num_threads } });
 
 			::std::function<double(const ::std::vector<double>&)> fun = [&fem, &outFile, &params](const ::std::vector<double>& ps) {
 				double p_E = ps[0];
@@ -2595,7 +2595,7 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 					}
 				}
 
-				params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info });
+				params.reset(new FunOptimParams{ timeArray, task->solution_elementsID, solution_elementsDomainID, trueJArray, truedeformationGradientArray, virtualstrainArrayV, externalVirtualWork, volumeVirtualWork, task->configure.isLaplaceVFM, task->configure.LaplaceVFM_s, externalVirtualWork_laplace, Sepk2_dotdot_vStrain, fs, task->configure.optim_function_output_debug_info, { task->configure.optim_function_output_iteration_stress, task->configure.optim_function_output_iteration_virtual_work, task->configure.optim_function_parallel, task->configure.optim_function_num_threads } });
 
 
 				funs.push_back([&fem, &outFile, &params](const ::std::vector<double>& ps) {
@@ -2708,66 +2708,66 @@ bool read_solved_information(FEModel* fem, unsigned int when, void* pd)
 	}
 
 	auto& visco_mask = ::std::get<2>(inter_nEvw);
-	::std::ofstream visco_mask_file;
-	visco_mask_file.open("./temp/debug/result/ElementInSolution_visco_mask.csv", ::std::ios::ate | ::std::ios::out);
-	for (int index_vm=0; index_vm<visco_mask.size(); ++index_vm)
-	{
-		visco_mask_file << visco_mask[index_vm];
-		if (index_vm != visco_mask.size() - 1)
-		{
-			visco_mask_file << ",";
-		}
-	}
-	visco_mask_file.close();
-
-	auto internal_normal_visco_dse0_strain_Jc = ::std::get<4>(inter_nEvw);
-
 	auto& S_e_0 = ::std::get<3>(inter_nEvw);
 
-	::std::vector<::std::vector<double>> temp_S_e_0(S_e_0[0].size(), ::std::vector<double>(S_e_0.size() * 6,0.0));
-
-	for (int index_seId = 0; index_seId < S_e_0[0].size(); index_seId++)
+	if (task->configure.optim_function_output_debug_info)
 	{
-		for (int index_timestep = 0; index_timestep < S_e_0.size(); index_timestep++)
+		::std::ofstream visco_mask_file;
+		visco_mask_file.open("./temp/debug/result/ElementInSolution_visco_mask.csv", ::std::ios::ate | ::std::ios::out);
+		for (int index_vm=0; index_vm<visco_mask.size(); ++index_vm)
 		{
-			for (int index_n = 0; index_n < S_e_0[index_timestep][index_seId].size(); index_n++)
+			visco_mask_file << visco_mask[index_vm];
+			if (index_vm != visco_mask.size() - 1)
 			{
-				temp_S_e_0[index_seId][index_timestep * 6] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](0, 0);
-				temp_S_e_0[index_seId][index_timestep * 6 + 1] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](1, 1);
-				temp_S_e_0[index_seId][index_timestep * 6 + 2] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](2, 2);
-				temp_S_e_0[index_seId][index_timestep * 6 + 3] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](0, 1);
-				temp_S_e_0[index_seId][index_timestep * 6 + 4] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](1, 2);
-				temp_S_e_0[index_seId][index_timestep * 6 + 5] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](2, 0);
+				visco_mask_file << ",";
 			}
 		}
-	}
-	write_vector2D_to_csv(temp_S_e_0, "./temp/debug/result/S_e_0.csv");
+		visco_mask_file.close();
 
-	::std::ofstream exter_nEvw_file;
-	exter_nEvw_file.open("./temp/debug/result/T_exter_nEvw.csv", ::std::ios::ate | ::std::ios::out);
-	for (int index_timestep = 0; index_timestep < exter_nEvw.size(); index_timestep++)
-	{
-		for (int index_vf = 0; index_vf < exter_nEvw[index_timestep].size(); index_vf++)
+		::std::vector<::std::vector<double>> temp_S_e_0(S_e_0[0].size(), ::std::vector<double>(S_e_0.size() * 6,0.0));
+		for (int index_seId = 0; index_seId < S_e_0[0].size(); index_seId++)
 		{
-			exter_nEvw_file << ::std::setprecision(12) << exter_nEvw[index_timestep][index_vf];
-			if (index_vf != exter_nEvw[index_timestep].size() - 1)
+			for (int index_timestep = 0; index_timestep < S_e_0.size(); index_timestep++)
 			{
-				exter_nEvw_file << ",";
+				for (int index_n = 0; index_n < S_e_0[index_timestep][index_seId].size(); index_n++)
+				{
+					temp_S_e_0[index_seId][index_timestep * 6] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](0, 0);
+					temp_S_e_0[index_seId][index_timestep * 6 + 1] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](1, 1);
+					temp_S_e_0[index_seId][index_timestep * 6 + 2] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](2, 2);
+					temp_S_e_0[index_seId][index_timestep * 6 + 3] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](0, 1);
+					temp_S_e_0[index_seId][index_timestep * 6 + 4] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](1, 2);
+					temp_S_e_0[index_seId][index_timestep * 6 + 5] += 1.0 / S_e_0[index_timestep][index_seId].size() * S_e_0[index_timestep][index_seId][index_n](2, 0);
+				}
 			}
 		}
-		if (index_timestep != exter_nEvw.size() - 1)
+		write_vector2D_to_csv(temp_S_e_0, "./temp/debug/result/S_e_0.csv");
+
+		::std::ofstream exter_nEvw_file;
+		exter_nEvw_file.open("./temp/debug/result/T_exter_nEvw.csv", ::std::ios::ate | ::std::ios::out);
+		for (int index_timestep = 0; index_timestep < exter_nEvw.size(); index_timestep++)
 		{
-			exter_nEvw_file << "\n";
+			for (int index_vf = 0; index_vf < exter_nEvw[index_timestep].size(); index_vf++)
+			{
+				exter_nEvw_file << ::std::setprecision(12) << exter_nEvw[index_timestep][index_vf];
+				if (index_vf != exter_nEvw[index_timestep].size() - 1)
+				{
+					exter_nEvw_file << ",";
+				}
+			}
+			if (index_timestep != exter_nEvw.size() - 1)
+			{
+				exter_nEvw_file << "\n";
+			}
 		}
+		exter_nEvw_file.close();
 	}
-	exter_nEvw_file.close();
 
 	task->configure.optim_function_T = [&fem, &outFile, &timeArray, &exter_nEvw, &inter_nEvw, &params](const ::std::vector<double>& ps) {
 		double p_E = ps[0];
 		double p_g = ps[1];
 		double p_t = ps[2];
 
-		double value = fun_for_optim_T(fem, p_g, p_t, p_E, outFile, timeArray, exter_nEvw, ::std::get<0>(inter_nEvw), ::std::get<2>(inter_nEvw), ::std::get<3>(inter_nEvw), params->virtualstrainArrayV, params->trueJArray, params->truedeformationGradientArray);
+		double value = fun_for_optim_T(fem, p_g, p_t, p_E, outFile, timeArray, exter_nEvw, ::std::get<0>(inter_nEvw), ::std::get<2>(inter_nEvw), ::std::get<3>(inter_nEvw), params->virtualstrainArrayV, params->trueJArray, params->truedeformationGradientArray, params->execution);
 
 		return value;
 		};

@@ -1,5 +1,34 @@
 #include "optim.h"
 
+#include <algorithm>
+#include <limits>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+namespace
+{
+int resolve_optim_thread_count(bool parallel, int requested_threads, ::std::size_t work_items)
+{
+    if (!parallel || work_items < 2)
+    {
+        return 1;
+    }
+
+#ifdef _OPENMP
+    const auto capped_work_items = static_cast<int>(::std::min(
+        work_items,
+        static_cast<::std::size_t>(::std::numeric_limits<int>::max())));
+    const int runtime_threads = requested_threads > 0 ? requested_threads : omp_get_max_threads();
+    return ::std::max(1, ::std::min(runtime_threads, capped_work_items));
+#else
+    (void)requested_threads;
+    return 1;
+#endif
+}
+}
+
 double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofstream& outFile, const FunOptimParams& params)
 {
 	// set new material parameters
@@ -38,6 +67,11 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 	}
 
 	double loss = 0;
+	const int optim_threads = resolve_optim_thread_count(
+		params.execution.parallel,
+		params.execution.num_threads,
+		params.solution_elementsID.size());
+	const bool optim_parallel = optim_threads > 1;
 
 	// Laplace the external virtual work
 	if (params.isLaplaceVFM == true)
@@ -146,13 +180,17 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 
 			for (int index_timestep = 0; index_timestep < params.timeArray.size(); index_timestep++)
 			{
+				fem->GetTime().timeIncrement = index_timestep == 0
+					? (params.timeArray[index_timestep + 1] - params.timeArray[index_timestep])
+					: (params.timeArray[index_timestep] - params.timeArray[index_timestep - 1]);
+
 				if (index_iter == 0 && index_timestep == params.timeArray.size() - 1)
 				{
 					last_psts = ::std::vector<::std::vector<mat3ds>>(params.trueJArray[index_timestep].size());
 				}
 
 
-#pragma omp parallel for
+#pragma omp parallel for if(optim_parallel) num_threads(optim_threads) schedule(static)
 				for (int index_seId = 0; index_seId < params.solution_elementsID.size(); index_seId++)
 				{
 					int j = params.solution_elementsID[index_seId];
@@ -199,7 +237,6 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 						pt_e.m_F = params.truedeformationGradientArray[index_timestep][index_seId][n];
 						pt_e.m_J = params.truedeformationGradientArray[index_timestep][index_seId][n].det();// trueJArray[index_timestep][index_seId][n];
 
-						fem->GetTime().timeIncrement = index_timestep == 0 ? (params.timeArray[index_timestep + 1] - params.timeArray[index_timestep]) : (params.timeArray[index_timestep] - params.timeArray[index_timestep - 1]);
 						mat3ds pts;
 						if (p_pt != nullptr)
 						{
@@ -302,6 +339,10 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 
 		for (int index_timestep = 0; index_timestep < params.timeArray.size(); index_timestep++)
 		{
+			fem->GetTime().timeIncrement = index_timestep == 0
+				? (params.timeArray[index_timestep + 1] - params.timeArray[index_timestep])
+				: (params.timeArray[index_timestep] - params.timeArray[index_timestep - 1]);
+
 			// internal virtual work
 			//logs_string = "calculate internal virtual work.\n";
 			//write_log(fem, 0, logs_string.c_str());
@@ -317,7 +358,7 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 				}
 			}
 
-#pragma omp parallel for
+#pragma omp parallel for if(optim_parallel) num_threads(optim_threads) schedule(static)
 			for (int index_seId = 0; index_seId < params.solution_elementsID.size(); index_seId++)
 			{
 				int j = params.solution_elementsID[index_seId];
@@ -350,8 +391,6 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 					pt_e.m_F = params.truedeformationGradientArray[index_timestep][index_seId][n];
 					pt_e.m_J = params.truedeformationGradientArray[index_timestep][index_seId][n].det();
 					double Jc = params.trueJArray[index_timestep][index_seId][n];
-
-					fem->GetTime().timeIncrement = index_timestep == 0 ? (params.timeArray[index_timestep + 1] - params.timeArray[index_timestep]) : (params.timeArray[index_timestep] - params.timeArray[index_timestep - 1]);
 
 					mat3ds s_pts;
 
@@ -577,7 +616,7 @@ double fun_for_optim(FEModel* fem, double p_g, double p_t, double p_E, std::ofst
 
 }
 
-double fun_for_optim_T(FEModel* fem, double p_g, double p_t, double p_E, std::ofstream& outFile, const ::std::vector<double>& timeArray, const ::std::vector<::std::vector<double>>& exter_nEvw, const ::std::vector<::std::vector<double>>& internal_normal_visco, const ::std::vector<int>& visco_mask, const ::std::vector<::std::vector<::std::vector<mat3ds>>>& S_e_0, const std::vector<std::vector<std::vector<std::vector<mat3ds>>>>& virtualstrainArrayV, const std::vector<std::vector<std::vector<double>>>& trueJArray, const std::vector<std::vector<std::vector<mat3d>>>& truedeformationGradientArray)
+double fun_for_optim_T(FEModel* fem, double p_g, double p_t, double p_E, std::ofstream& outFile, const ::std::vector<double>& timeArray, const ::std::vector<::std::vector<double>>& exter_nEvw, const ::std::vector<::std::vector<double>>& internal_normal_visco, const ::std::vector<int>& visco_mask, const ::std::vector<::std::vector<::std::vector<mat3ds>>>& S_e_0, const std::vector<std::vector<std::vector<std::vector<mat3ds>>>>& virtualstrainArrayV, const std::vector<std::vector<std::vector<double>>>& trueJArray, const std::vector<std::vector<std::vector<mat3d>>>& truedeformationGradientArray, const OptimExecutionOptions& execution)
 {
 	int vf_u_size = exter_nEvw[0].size();
 
@@ -593,9 +632,19 @@ double fun_for_optim_T(FEModel* fem, double p_g, double p_t, double p_E, std::of
 	::std::vector<::std::vector<double>> internalVirtualWork_visco(t.size(), ::std::vector<double>(vf_u_size, 0));
 
 	::std::vector<::std::vector<::std::vector<mat3ds>>> S(S_e_0);
-	::std::vector<::std::vector<::std::vector<mat3ds>>> stress(S_e_0);
+	::std::vector<::std::vector<::std::vector<mat3ds>>> stress;
+	if (execution.output_iteration_stress)
+	{
+		stress = S_e_0;
+	}
 
-	#pragma omp parallel for
+	const int timestep_threads = resolve_optim_thread_count(
+		execution.parallel,
+		execution.num_threads,
+		t.size());
+	const bool timestep_parallel = timestep_threads > 1;
+
+	#pragma omp parallel for if(timestep_parallel) num_threads(timestep_threads) schedule(static)
 	for (int index_timestep = 0; index_timestep < t.size(); index_timestep++)
 	{
 		for (int index_seId = 0; index_seId < S[index_timestep].size(); index_seId++)
@@ -639,80 +688,102 @@ double fun_for_optim_T(FEModel* fem, double p_g, double p_t, double p_E, std::of
 				}
 			}
 		
-			for (int index_n = 0; index_n < S[index_timestep][index_seId].size(); index_n++)
+			if (execution.output_iteration_stress)
 			{
-				auto& F = truedeformationGradientArray[index_timestep][index_seId][index_n];
-				auto detF = F.det();
+				for (int index_n = 0; index_n < S[index_timestep][index_seId].size(); index_n++)
+				{
+					auto& F = truedeformationGradientArray[index_timestep][index_seId][index_n];
+					auto detF = F.det();
 
-				// Cauchy stress
-				mat3d stress_cauchy = ((F * S[index_timestep][index_seId][index_n]) * F.transpose()) * (1.0 / detF);
-				// save as symmetric matrix
-				mat3ds stress_cauchy_sym(stress_cauchy(0, 0), stress_cauchy(1, 1), stress_cauchy(2, 2), stress_cauchy(0, 1), stress_cauchy(1, 2), stress_cauchy(0, 2));
-				stress[index_timestep][index_seId][index_n] = stress_cauchy_sym;
+					// Cauchy stress
+					mat3d stress_cauchy = ((F * S[index_timestep][index_seId][index_n]) * F.transpose()) * (1.0 / detF);
+					// save as symmetric matrix
+					mat3ds stress_cauchy_sym(stress_cauchy(0, 0), stress_cauchy(1, 1), stress_cauchy(2, 2), stress_cauchy(0, 1), stress_cauchy(1, 2), stress_cauchy(0, 2));
+					stress[index_timestep][index_seId][index_n] = stress_cauchy_sym;
+				}
 			}
 		}
 	}
 
-	double loss = 0;
-	#pragma omp parallel for
+	::std::vector<double> loss_by_virtual_field(vf_u_size, 0.0);
+	const int virtual_field_threads = resolve_optim_thread_count(
+		execution.parallel,
+		execution.num_threads,
+		static_cast<::std::size_t>(vf_u_size));
+	const bool virtual_field_parallel = virtual_field_threads > 1;
+	#pragma omp parallel for if(virtual_field_parallel) num_threads(virtual_field_threads) schedule(static)
 	for (int index_vf = 0; index_vf < vf_u_size; index_vf++)
 	{
 		for (int index_timestep = 0; index_timestep < t.size(); index_timestep++)
 		{
 			double loss_vw = ::std::abs(exter_nEvw[index_timestep][index_vf] - internalVirtualWork_visco[index_timestep][index_vf]);
-			loss += loss_vw;
+			loss_by_virtual_field[index_vf] += loss_vw;
 		}
 	}
-
-	// output iter_stress[i][j] to csv file
-	::std::vector<::std::vector<double>> temp_iter_stress(S[0].size(), ::std::vector<double>(S.size() * 6, 0.0));
-	#pragma omp parallel for
-	for (int index_seId = 0; index_seId < S[0].size(); index_seId++)
+	double loss = 0.0;
+	for (const double virtual_field_loss : loss_by_virtual_field)
 	{
-		for (int index_timestep = 0; index_timestep < S.size(); index_timestep++)
-		{
-			auto PK2 = S[index_timestep][index_seId][0];
-			for (int index_n = 1; index_n < S[index_timestep][index_seId].size(); index_n++)
-			{
-				PK2+=S[index_timestep][index_seId][index_n];
-			}
-			PK2 /= S[index_timestep][index_seId].size();
-			temp_iter_stress[index_seId][index_timestep * 6] = PK2(0, 0);
-			temp_iter_stress[index_seId][index_timestep * 6 + 1] = PK2(1, 1);
-			temp_iter_stress[index_seId][index_timestep * 6 + 2] = PK2(2, 2);
-			temp_iter_stress[index_seId][index_timestep * 6 + 3] = PK2(0, 1);
-			temp_iter_stress[index_seId][index_timestep * 6 + 4] = PK2(1, 2);
-			temp_iter_stress[index_seId][index_timestep * 6 + 5] = PK2(0, 2);
-		}
+		loss += virtual_field_loss;
 	}
-	write_vector2D_to_csv(temp_iter_stress, "./temp/debug/result/T_PK2stress_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
 
-	// output iter_stress[i][j] to csv file
-
-	::std::vector<::std::vector<double>> temp_T_stress(stress[0].size(), ::std::vector<double>(stress.size() * 6, 0.0));
-	#pragma omp parallel for
-	for (int index_seId = 0; index_seId < stress[0].size(); index_seId++)
+	if (execution.output_iteration_stress)
 	{
-		for (int index_timestep = 0; index_timestep < stress.size(); index_timestep++)
-		{
-			auto s = stress[index_timestep][index_seId][0];
-			for (int index_n = 1; index_n < stress[index_timestep][index_seId].size(); index_n++)
-			{
-				s += stress[index_timestep][index_seId][index_n];
-			}
-			s /= stress[index_timestep][index_seId].size();
-			temp_T_stress[index_seId][index_timestep * 6] = s(0, 0);
-			temp_T_stress[index_seId][index_timestep * 6 + 1] = s(1, 1);
-			temp_T_stress[index_seId][index_timestep * 6 + 2] = s(2, 2);
-			temp_T_stress[index_seId][index_timestep * 6 + 3] = s(0, 1);
-			temp_T_stress[index_seId][index_timestep * 6 + 4] = s(1, 2);
-			temp_T_stress[index_seId][index_timestep * 6 + 5] = s(0, 2);
-		}
-	}
-	write_vector2D_to_csv(temp_T_stress, "./temp/debug/result/T_stress_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
+		const int element_threads = resolve_optim_thread_count(
+			execution.parallel,
+			execution.num_threads,
+			S[0].size());
+		const bool element_parallel = element_threads > 1;
 
-	// output internalVirtualWork[i][j] to csv file
-	write_vector2D_to_csv(internalVirtualWork_visco, "./temp/debug/result/T_internalVirtualWork_visco_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
+		// output iter_stress[i][j] to csv file
+		::std::vector<::std::vector<double>> temp_iter_stress(S[0].size(), ::std::vector<double>(S.size() * 6, 0.0));
+		#pragma omp parallel for if(element_parallel) num_threads(element_threads) schedule(static)
+		for (int index_seId = 0; index_seId < S[0].size(); index_seId++)
+		{
+			for (int index_timestep = 0; index_timestep < S.size(); index_timestep++)
+			{
+				auto PK2 = S[index_timestep][index_seId][0];
+				for (int index_n = 1; index_n < S[index_timestep][index_seId].size(); index_n++)
+				{
+					PK2 += S[index_timestep][index_seId][index_n];
+				}
+				PK2 /= S[index_timestep][index_seId].size();
+				temp_iter_stress[index_seId][index_timestep * 6] = PK2(0, 0);
+				temp_iter_stress[index_seId][index_timestep * 6 + 1] = PK2(1, 1);
+				temp_iter_stress[index_seId][index_timestep * 6 + 2] = PK2(2, 2);
+				temp_iter_stress[index_seId][index_timestep * 6 + 3] = PK2(0, 1);
+				temp_iter_stress[index_seId][index_timestep * 6 + 4] = PK2(1, 2);
+				temp_iter_stress[index_seId][index_timestep * 6 + 5] = PK2(0, 2);
+			}
+		}
+		write_vector2D_to_csv(temp_iter_stress, "./temp/debug/result/T_PK2stress_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
+
+		::std::vector<::std::vector<double>> temp_T_stress(stress[0].size(), ::std::vector<double>(stress.size() * 6, 0.0));
+		#pragma omp parallel for if(element_parallel) num_threads(element_threads) schedule(static)
+		for (int index_seId = 0; index_seId < stress[0].size(); index_seId++)
+		{
+			for (int index_timestep = 0; index_timestep < stress.size(); index_timestep++)
+			{
+				auto s = stress[index_timestep][index_seId][0];
+				for (int index_n = 1; index_n < stress[index_timestep][index_seId].size(); index_n++)
+				{
+					s += stress[index_timestep][index_seId][index_n];
+				}
+				s /= stress[index_timestep][index_seId].size();
+				temp_T_stress[index_seId][index_timestep * 6] = s(0, 0);
+				temp_T_stress[index_seId][index_timestep * 6 + 1] = s(1, 1);
+				temp_T_stress[index_seId][index_timestep * 6 + 2] = s(2, 2);
+				temp_T_stress[index_seId][index_timestep * 6 + 3] = s(0, 1);
+				temp_T_stress[index_seId][index_timestep * 6 + 4] = s(1, 2);
+				temp_T_stress[index_seId][index_timestep * 6 + 5] = s(0, 2);
+			}
+		}
+		write_vector2D_to_csv(temp_T_stress, "./temp/debug/result/T_stress_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
+	}
+
+	if (execution.output_iteration_virtual_work)
+	{
+		write_vector2D_to_csv(internalVirtualWork_visco, "./temp/debug/result/T_internalVirtualWork_visco_" + ::std::to_string(p_E) + "_" + ::std::to_string(p_g) + "_" + ::std::to_string(p_t) + ".csv");
+	}
 
 
 	return loss;
@@ -1008,6 +1079,11 @@ double fun_for_optim_elastic_E(FEModel* fem, double p_E, std::ofstream& outFile,
 	}
 
 	double loss = 0;
+	const int elastic_element_threads = resolve_optim_thread_count(
+		params.execution.parallel,
+		params.execution.num_threads,
+		params.solution_elementsID.size());
+	const bool elastic_element_parallel = elastic_element_threads > 1;
 
 	// internal virtual work
 	::std::vector<::std::vector<double>> internalVirtualWork(params.timeArray.size());
@@ -1046,7 +1122,8 @@ double fun_for_optim_elastic_E(FEModel* fem, double p_E, std::ofstream& outFile,
 			}
 		}
 
-//#pragma omp parallel for
+		// FEBio material evaluation updates material-point state. Keep this loop
+		// serial until that API is explicitly guaranteed to be thread-safe.
 		for (int index_seId = 0; index_seId < params.solution_elementsID.size(); index_seId++)
 		{
 			int j = params.solution_elementsID[index_seId];
@@ -1108,6 +1185,13 @@ double fun_for_optim_elastic_E(FEModel* fem, double p_E, std::ofstream& outFile,
 		}
 	}
 
+	::std::vector<double> loss_by_virtual_field(vf_u_size, 0.0);
+	const int elastic_virtual_field_threads = resolve_optim_thread_count(
+		params.execution.parallel,
+		params.execution.num_threads,
+		static_cast<::std::size_t>(vf_u_size));
+	const bool elastic_virtual_field_parallel = elastic_virtual_field_threads > 1;
+	#pragma omp parallel for if(elastic_virtual_field_parallel) num_threads(elastic_virtual_field_threads) schedule(static)
 	for (int index_vf = 0; index_vf < vf_u_size; index_vf++)
 	{
 		double vf_loss = 0;
@@ -1121,35 +1205,43 @@ double fun_for_optim_elastic_E(FEModel* fem, double p_E, std::ofstream& outFile,
 			vf_evw += params.externalVirtualWork[index_timestep][index_vf];
 		}
 		//loss += ::std::abs(vf_loss/vf_evw);
-		loss += ::std::abs(vf_loss);
+		loss_by_virtual_field[index_vf] = ::std::abs(vf_loss);
 	}
-
-
-	// output iter_stress[i][j] to csv file
-	::std::vector<::std::vector<double>> temp_iter_stress(S[0].size(), ::std::vector<double>(S.size() * 6, 0.0));
-#pragma omp parallel for
-	for (int index_seId = 0; index_seId < S[0].size(); index_seId++)
+	for (const double virtual_field_loss : loss_by_virtual_field)
 	{
-		for (int index_timestep = 0; index_timestep < S.size(); index_timestep++)
-		{
-			auto PK2 = S[index_timestep][index_seId][0];
-			for (int index_n = 1; index_n < S[index_timestep][index_seId].size(); index_n++)
-			{
-				PK2 += S[index_timestep][index_seId][index_n];
-			}
-			PK2 /= S[index_timestep][index_seId].size();
-			temp_iter_stress[index_seId][index_timestep * 6] = PK2(0, 0);
-			temp_iter_stress[index_seId][index_timestep * 6 + 1] = PK2(1, 1);
-			temp_iter_stress[index_seId][index_timestep * 6 + 2] = PK2(2, 2);
-			temp_iter_stress[index_seId][index_timestep * 6 + 3] = PK2(0, 1);
-			temp_iter_stress[index_seId][index_timestep * 6 + 4] = PK2(1, 2);
-			temp_iter_stress[index_seId][index_timestep * 6 + 5] = PK2(0, 2);
-		}
+		loss += virtual_field_loss;
 	}
-	write_vector2D_to_csv(temp_iter_stress, "./temp/debug/result/T_PK2stress_" + ::std::to_string(p_E) + ".csv");
 
-	// output internalVirtualWork[i][j] to csv file
-	write_vector2D_to_csv(internalVirtualWork, "./temp/debug/result/internalVirtualWork_" + ::std::to_string(p_E) + ".csv");
+	if (params.execution.output_iteration_stress)
+	{
+		// output iter_stress[i][j] to csv file
+		::std::vector<::std::vector<double>> temp_iter_stress(S[0].size(), ::std::vector<double>(S.size() * 6, 0.0));
+		#pragma omp parallel for if(elastic_element_parallel) num_threads(elastic_element_threads) schedule(static)
+		for (int index_seId = 0; index_seId < S[0].size(); index_seId++)
+		{
+			for (int index_timestep = 0; index_timestep < S.size(); index_timestep++)
+			{
+				auto PK2 = S[index_timestep][index_seId][0];
+				for (int index_n = 1; index_n < S[index_timestep][index_seId].size(); index_n++)
+				{
+					PK2 += S[index_timestep][index_seId][index_n];
+				}
+				PK2 /= S[index_timestep][index_seId].size();
+				temp_iter_stress[index_seId][index_timestep * 6] = PK2(0, 0);
+				temp_iter_stress[index_seId][index_timestep * 6 + 1] = PK2(1, 1);
+				temp_iter_stress[index_seId][index_timestep * 6 + 2] = PK2(2, 2);
+				temp_iter_stress[index_seId][index_timestep * 6 + 3] = PK2(0, 1);
+				temp_iter_stress[index_seId][index_timestep * 6 + 4] = PK2(1, 2);
+				temp_iter_stress[index_seId][index_timestep * 6 + 5] = PK2(0, 2);
+			}
+		}
+		write_vector2D_to_csv(temp_iter_stress, "./temp/debug/result/T_PK2stress_" + ::std::to_string(p_E) + ".csv");
+	}
+
+	if (params.execution.output_iteration_virtual_work)
+	{
+		write_vector2D_to_csv(internalVirtualWork, "./temp/debug/result/internalVirtualWork_" + ::std::to_string(p_E) + ".csv");
+	}
 
 
 	return loss;
