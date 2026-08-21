@@ -56,8 +56,15 @@ def InitVFMTask(
     # Required here because the current plugin emits the direct FEBio-stress
     # internal/external virtual-work matrices under this diagnostic switch.
     configure.optim_function_output_debug_info = True
+    configure.optim_function_output_iteration_stress = False
+    configure.optim_function_output_iteration_virtual_work = False
+    configure.optim_function_parallel = True
+    configure.optim_function_num_threads = 8
 
-    print("MA05P validation: FEBio forward solve is required before VFM inversion.")
+    print(
+        "MA05P validation: FEBio forward solve is required before VFM inversion; "
+        "the constitutive objective uses 8 OpenMP threads."
+    )
     return configure
 
 

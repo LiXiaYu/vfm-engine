@@ -30,12 +30,12 @@ executed commercial license for project-controlled material. It is not an MIT
 continuation of `v1.0-thesis`. No binary artifact is claimed to have been built
 or validated as part of this source release.
 
-The current source release is `1.1.3`. It separates FEBio execution from result
-buffer reuse: `run_febio_solve` controls only whether `FEModel::Solve()` runs,
-while `reuse_saved_result_buffer` controls only whether an existing mapped result
-buffer is reused. This allows Python-configured VFM data to run after FEBio model
-initialization without executing an unnecessary finite-element solve. The legacy
-in-process `NLpot_0` optimizer remains disabled.
+The current source release is `1.1.4`. It corrects Gaussian integration weights
+used by virtual-work calculations, adds final-cycle periodic constitutive and
+solid-element validation cases, and makes per-evaluation optimization output
+explicitly opt-in. Optimization parallelism now has configurable thread control
+and deterministic, race-free loss accumulation. The legacy in-process `NLpot_0`
+optimizer remains disabled.
 
 ## Licensing
 
